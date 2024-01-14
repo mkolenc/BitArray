@@ -100,6 +100,9 @@ BitArray* BitArray_load(const char file_name[]);
 // Macro functions
 #define BYTES_FROM_BITS(bits) (POSITIVE_CEIL(((long double) (bits)) / CHAR_BIT))
 #define POSITIVE_CEIL(x) ((x) > ((index_t)(x)) ? ((index_t)(x) + 1) : ((index_t)(x))) 
+#define BYTE_INDEX(index) ((index) / CHAR_BIT)
+#define BIT_OFFSET(index) ((index) % CHAR_BIT)
+#define GET_MASK(index) (1 << (CHAR_BIT - BIT_OFFSET(index) - 1)) // Generate a bit mask with a specific bit set for an unsigned char.
 
 // Structure
 struct BitArray {
@@ -110,11 +113,6 @@ struct BitArray {
 BitArray* BitArray_init(index_t size, BitState initial_bit_state) 
 {
     // Check for invalid parameters
-    if (size == 0) {
-        fprintf(stderr, "Can't create a BitArray of size 0\n");
-        return NULL;
-    }
-
     if ((initial_bit_state != BIT_SET) && (initial_bit_state != BIT_CLEAR)) {
         fprintf(stderr, "Invalid BitState. Expected BIT_SET or BIT_CLEAR\n");
         return NULL;
@@ -163,7 +161,7 @@ BitArray* BitArray_resize(BitArray* bit_array, index_t new_num_bits)
 BitArray* BitArray_copy(const BitArray* old_BitArray) 
 {
     // Calculate the size in bytes of the BitArray
-    size_t size = sizeof(*old_BitArray) + (BYTES_FROM_BITS(old_BitArray->num_bits) * sizeof(unsigned char));
+    index_t size = sizeof(*old_BitArray) + (BYTES_FROM_BITS(old_BitArray->num_bits) * sizeof(unsigned char));
 
     // Allocate memory for the duplicate BitArray
     BitArray* new_BitArray = (BitArray*) malloc(size);
@@ -178,5 +176,74 @@ BitArray* BitArray_copy(const BitArray* old_BitArray)
     return new_BitArray;
 }
 
+// Private helper function to validate we can preform bit operations
+static void internal_BitArray_validate_index(const BitArray* bit_array, index_t index)
+{
+	if (index >= bit_array->num_bits) {
+        fprintf(stderr, "Error: Index %zu is out of range for BitArray of size %zu\n", index, bit_array->num_bits);
+        exit(EXIT_FAILURE);
+    }
+}
+
+BitState BitArray_check_bit(const BitArray* bit_array, index_t bit_index)
+{	
+	internal_BitArray_validate_index(bit_array, bit_index);
+	return (bit_array->data[BYTE_INDEX(bit_index)] & GET_MASK(bit_index)) == BIT_CLEAR ? BIT_CLEAR : BIT_SET;
+}
+
+void BitArray_set_bit(BitArray* bit_array, index_t bit_index)
+{
+	internal_BitArray_validate_index(bit_array, bit_index);
+	bit_array->data[BYTE_INDEX(bit_index)] |= GET_MASK(bit_index);
+}
+
+void BitArray_clear_bit(BitArray* bit_array, index_t bit_index)
+{
+	internal_BitArray_validate_index(bit_array, bit_index);
+	bit_array->data[BYTE_INDEX(bit_index)] &= ~GET_MASK(bit_index);
+}
+
+void BitArray_toggle_bit(BitArray* bit_array, index_t bit_index)
+{
+	internal_BitArray_validate_index(bit_array, bit_index);
+	bit_array->data[BYTE_INDEX(bit_index)] ^= GET_MASK(bit_index);
+}
+
+void BitArray_set_bits(BitArray* bit_array, index_t num_bits_to_set, ...)
+{
+    va_list arg_list;
+    va_start(arg_list, num_bits_to_set);
+
+	for (index_t i = 0; i < num_bits_to_set; i++) {
+		index_t index = va_arg(arg_list, index_t);
+		BitArray_set_bit(bit_array, index);
+	}
+	va_end(arg_list);
+}
+
+// Clears multiple bits at once
+void BitArray_clear_bits(BitArray* bit_array, index_t num_bits_to_clear, ...)
+{
+    va_list arg_list;
+    va_start(arg_list, num_bits_to_clear);
+
+	for (index_t i = 0; i < num_bits_to_clear; i++) {
+		index_t index = va_arg(arg_list, index_t);
+		BitArray_clear_bit(bit_array, index);
+	}
+	va_end(arg_list);
+}
+
+void BitArray_toggle_bits(BitArray* bit_array, index_t num_bits_to_toggle, ...)
+{
+    va_list arg_list;
+    va_start(arg_list, num_bits_to_toggle);
+
+	for (index_t i = 0; i < num_bits_to_toggle; i++) {
+		index_t index = va_arg(arg_list, index_t);
+		BitArray_toggle_bit(bit_array, index);
+	}
+	va_end(arg_list);
+}
 
 #endif /* BIT_ARRAY_IMPLEMENTATION */
