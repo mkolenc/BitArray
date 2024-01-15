@@ -97,12 +97,18 @@ BitArray* BitArray_load(const char file_name[]);
 #include <limits.h>
 #include <errno.h>
 
+// Constants
+#define SET_BYTE ((unsigned char) ~0)
+#define CLEAR_BYTE ((unsigned char) 0)
+
 // Macro functions
 #define BYTES_FROM_BITS(bits) (POSITIVE_CEIL(((long double) (bits)) / CHAR_BIT))
 #define POSITIVE_CEIL(x) ((x) > ((index_t)(x)) ? ((index_t)(x) + 1) : ((index_t)(x))) 
 #define BYTE_INDEX(index) ((index) / CHAR_BIT)
 #define BIT_OFFSET(index) ((index) % CHAR_BIT)
 #define GET_MASK(index) (1 << (CHAR_BIT - BIT_OFFSET(index) - 1)) // Generate a bit mask with a specific bit set for an unsigned char.
+#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 
 // Structure
 struct BitArray {
@@ -209,41 +215,118 @@ void BitArray_toggle_bit(BitArray* bit_array, index_t bit_index)
 	bit_array->data[BYTE_INDEX(bit_index)] ^= GET_MASK(bit_index);
 }
 
-void BitArray_set_bits(BitArray* bit_array, index_t num_bits_to_set, ...)
+// Private helper function to modify specific bits in one function call
+void internal_BitArray_modify_bits(BitArray* bit_array,
+                                   void (*bit_operation)(BitArray*, index_t), 
+                                   index_t num_bits_to_set, ...)
 {
     va_list arg_list;
     va_start(arg_list, num_bits_to_set);
 
 	for (index_t i = 0; i < num_bits_to_set; i++) {
 		index_t index = va_arg(arg_list, index_t);
-		BitArray_set_bit(bit_array, index);
+		bit_operation(bit_array, index);
 	}
 	va_end(arg_list);
 }
 
-// Clears multiple bits at once
+inline void BitArray_set_bits(BitArray* bit_array, index_t num_bits_to_set, ...)
+{
+    internal_BitArray_modify_bits(bit_array, BitArray_set_bit, num_bits_to_set, ...);
+}
+
 void BitArray_clear_bits(BitArray* bit_array, index_t num_bits_to_clear, ...)
 {
-    va_list arg_list;
-    va_start(arg_list, num_bits_to_clear);
-
-	for (index_t i = 0; i < num_bits_to_clear; i++) {
-		index_t index = va_arg(arg_list, index_t);
-		BitArray_clear_bit(bit_array, index);
-	}
-	va_end(arg_list);
+    internal_BitArray_modify_bits(bit_array, BitArray_clear_bit, num_bits_to_clear, ...);
 }
 
 void BitArray_toggle_bits(BitArray* bit_array, index_t num_bits_to_toggle, ...)
 {
-    va_list arg_list;
-    va_start(arg_list, num_bits_to_toggle);
+    internal_BitArray_modify_bits(bit_array, BitArray_toggle_bit, num_bits_to_toggle, ...);
+}
 
-	for (index_t i = 0; i < num_bits_to_toggle; i++) {
-		index_t index = va_arg(arg_list, index_t);
-		BitArray_toggle_bit(bit_array, index);
+// Private helper function to operate on a region of the BitArray
+// bit_operation is a function pointer to either BitArray_clear_bit, BitArray_set_bit or BitArray_toggle_bit.
+static void internal_BitArray_operate_region(BitArray* bit_array, 
+                                             index_t start_bit_index, 
+                                             index_t end_bit_index, 
+                                             void (*bit_operation)(BitArray*, index_t))
+{
+    internal_BitArray_validate_index(bit_array, start_bit_index);
+    internal_BitArray_validate_index(bit_array, end_bit_index);
+
+	start_bit_index = MIN(start_bit_index, end_bit_index);
+	end_bit_index = MAX(start_bit_index, end_bit_index);
+
+    index_t start_byte = BYTE_INDEX(start_bit_index);
+    index_t end_byte = BYTE_INDEX(end_bit_index);
+	
+	// Operate on bits within the same byte
+	if ((start_byte == end_byte)) {
+		for (index_t i = start_bit_index; i <= end_bit_index; i++)
+			bit_operation(bit_array, index);
+		return;
 	}
-	va_end(arg_list);
+
+    // Operate on bits in the first byte
+    char start_bit_offset = BIT_OFFSET(start_bit_index);
+    if (start_bit_offset != 0) {
+        for (char i = start_bit_offset; i < CHAR_BIT; i++)
+			bit_operation(bit_array, start_bit_index++);
+        start_byte++;
+    }
+
+    // Operate on bits in the last byte
+    char end_bit_offset = BIT_OFFSET(end_bit_index);
+    if (end_bit_offset != CHAR_BIT - 1) {
+        for (char i = end_bit_offset; i >= 0; i--) 
+			bit_operation(bit_array, end_bit_index--);
+        end_byte--;
+    }
+
+	// Operate on the remaining bytes 
+	unsigned char* ptr = bit_array->data + start_byte;
+    index_t remaining_bytes = end_byte - start_byte + 1;
+
+    if (bit_operation == BitArray_clear_bit)
+		memset(ptr, CLEAR_BYTE, remaining_bytes);
+    else if (bit_operation == BitArray_set_bit)
+		memset(ptr, SET_BYTE, remaining_bytes);
+    else
+		for (index_t i = 0; i < remaining_bytes; i++)
+			ptr[i] ^= SET_BYTE; // toggles a byte
+}
+
+inline void BitArray_set_region(BitArray* bit_array, index_t start_bit_index, index_t end_bit_index)
+{
+	internal_BitArray_operate_region(bit_array, start_bit_index, end_bit_index, BitArray_set_bit);
+}
+
+inline void BitArray_clear_region(BitArray* bit_array, index_t start_bit_index, index_t end_bit_index) 
+{
+	internal_BitArray_operate_region(bit_array, start_bit_index, end_bit_index, BitArray_clear_bit);
+}
+
+inline void BitArray_toggle_region(BitArray* bit_array, index_t start_bit_index, index_t end_bit_index)
+{
+	internal_BitArray_operate_region(bit_array, start_bit_index, end_bit_index, BitArray_toggle_bit);
+}
+
+inline void BitArray_set(BitArray* bit_array)
+{
+	memset(bit_array->data, SET_BYTE, BYTES_FROM_BITS(bit_array->num_bits));
+}
+
+inline void BitArray_clear(BitArray* bit_array)
+{
+	memset(bit_array->data, CLEAR_BYTE, BYTES_FROM_BITS(bit_array->num_bits));
+}
+
+void BitArray_toggle(BitArray* bit_array)
+{
+	index_t byte_size = BYTES_FROM_BITS(bit_array->num_bits);
+	for (index_t i = 0; i < byte_size; i++)
+		bit_array->data[i] ^= SET_BYTE;
 }
 
 #endif /* BIT_ARRAY_IMPLEMENTATION */
