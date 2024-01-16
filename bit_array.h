@@ -123,7 +123,6 @@ enum SearchDirection {
 #define GET_MASK(index) (1 << (CHAR_BIT - BIT_OFFSET(index) - 1)) // Generate a bit mask with a specific bit set for an unsigned char.
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
-#define ELLIPSE_UPWRAP(...)
 
 // Typedefs
 typedef enum SearchDirection SearchDirection;
