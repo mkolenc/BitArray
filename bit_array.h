@@ -101,6 +101,11 @@ BitArray* BitArray_load(const char file_name[]);
 #define SET_BYTE ((unsigned char) ~0)
 #define CLEAR_BYTE ((unsigned char) 0)
 
+enum SearchDirection {
+    SEARCH_BACKWARD = -1,
+	SEARCH_FORWARD = 1
+};
+
 // Macro functions
 #define BYTES_FROM_BITS(bits) (POSITIVE_CEIL(((long double) (bits)) / CHAR_BIT))
 #define POSITIVE_CEIL(x) ((x) > ((index_t)(x)) ? ((index_t)(x) + 1) : ((index_t)(x))) 
@@ -109,6 +114,9 @@ BitArray* BitArray_load(const char file_name[]);
 #define GET_MASK(index) (1 << (CHAR_BIT - BIT_OFFSET(index) - 1)) // Generate a bit mask with a specific bit set for an unsigned char.
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+
+// Typedefs
+typedef enum SearchDirection SearchDirection;
 
 // Structure
 struct BitArray {
@@ -141,7 +149,7 @@ BitArray* BitArray_init(index_t size, BitState initial_bit_state)
     return bit_array;
 }
 
-void BitArray_free(BitArray* bit_array)
+inline void BitArray_free(BitArray* bit_array)
 {
 	free(bit_array);
 }
@@ -235,12 +243,12 @@ inline void BitArray_set_bits(BitArray* bit_array, index_t num_bits_to_set, ...)
     internal_BitArray_modify_bits(bit_array, BitArray_set_bit, num_bits_to_set, ...);
 }
 
-void BitArray_clear_bits(BitArray* bit_array, index_t num_bits_to_clear, ...)
+inline void BitArray_clear_bits(BitArray* bit_array, index_t num_bits_to_clear, ...)
 {
     internal_BitArray_modify_bits(bit_array, BitArray_clear_bit, num_bits_to_clear, ...);
 }
 
-void BitArray_toggle_bits(BitArray* bit_array, index_t num_bits_to_toggle, ...)
+inline void BitArray_toggle_bits(BitArray* bit_array, index_t num_bits_to_toggle, ...)
 {
     internal_BitArray_modify_bits(bit_array, BitArray_toggle_bit, num_bits_to_toggle, ...);
 }
@@ -327,6 +335,103 @@ void BitArray_toggle(BitArray* bit_array)
 	index_t byte_size = BYTES_FROM_BITS(bit_array->num_bits);
 	for (index_t i = 0; i < byte_size; i++)
 		bit_array->data[i] ^= SET_BYTE;
+}
+
+inline index_t BitArray_size(const BitArray* bit_array) {
+    return (bit_array->num_bits);
+}
+
+index_t BitArray_num_set_bits(const BitArray* bit_array) 
+{
+    index_t num_full_bytes = BYTES_FROM_BITS(bit_array->num_bits) - 1;
+    index_t BitArray_num_set_bits = 0;
+
+    for (index_t i = 0; i < num_full_bytes; i++) {
+		// Used to map an unsigned char to the number of 'ON' bits
+		static const unsigned char bits_set_count_table[SET_BYTE + 1] = {
+			0x0, 0x1, 0x1, 0x2, 0x1, 0x2, 0x2, 0x3, 0x1, 0x2, 0x2, 0x3, 0x2, 0x3, 0x3,
+			0x4, 0x1, 0x2, 0x2, 0x3, 0x2, 0x3, 0x3, 0x4, 0x2, 0x3, 0x3, 0x4, 0x3, 0x4,
+			0x4, 0x5, 0x1, 0x2, 0x2, 0x3, 0x2, 0x3, 0x3, 0x4, 0x2, 0x3, 0x3, 0x4, 0x3,
+			0x4, 0x4, 0x5, 0x2, 0x3, 0x3, 0x4, 0x3, 0x4, 0x4, 0x5, 0x3, 0x4, 0x4, 0x5,
+			0x4, 0x5, 0x5, 0x6, 0x1, 0x2, 0x2, 0x3, 0x2, 0x3, 0x3, 0x4, 0x2, 0x3, 0x3,
+			0x4, 0x3, 0x4, 0x4, 0x5, 0x2, 0x3, 0x3, 0x4, 0x3, 0x4, 0x4, 0x5, 0x3, 0x4,
+			0x4, 0x5, 0x4, 0x5, 0x5, 0x6, 0x2, 0x3, 0x3, 0x4, 0x3, 0x4, 0x4, 0x5, 0x3,
+			0x4, 0x4, 0x5, 0x4, 0x5, 0x5, 0x6, 0x3, 0x4, 0x4, 0x5, 0x4, 0x5, 0x5, 0x6,
+			0x4, 0x5, 0x5, 0x6, 0x5, 0x6, 0x6, 0x7, 0x1, 0x2, 0x2, 0x3, 0x2, 0x3, 0x3,
+			0x4, 0x2, 0x3, 0x3, 0x4, 0x3, 0x4, 0x4, 0x5, 0x2, 0x3, 0x3, 0x4, 0x3, 0x4,
+			0x4, 0x5, 0x3, 0x4, 0x4, 0x5, 0x4, 0x5, 0x5, 0x6, 0x2, 0x3, 0x3, 0x4, 0x3,
+			0x4, 0x4, 0x5, 0x3, 0x4, 0x4, 0x5, 0x4, 0x5, 0x5, 0x6, 0x3, 0x4, 0x4, 0x5,
+			0x4, 0x5, 0x5, 0x6, 0x4, 0x5, 0x5, 0x6, 0x5, 0x6, 0x6, 0x7, 0x2, 0x3, 0x3,
+			0x4, 0x3, 0x4, 0x4, 0x5, 0x3, 0x4, 0x4, 0x5, 0x4, 0x5, 0x5, 0x6, 0x3, 0x4,
+			0x4, 0x5, 0x4, 0x5, 0x5, 0x6, 0x4, 0x5, 0x5, 0x6, 0x5, 0x6, 0x6, 0x7, 0x3,
+			0x4, 0x4, 0x5, 0x4, 0x5, 0x5, 0x6, 0x4, 0x5, 0x5, 0x6, 0x5, 0x6, 0x6, 0x7,
+			0x4, 0x5, 0x5, 0x6, 0x5, 0x6, 0x6, 0x7, 0x5, 0x6, 0x6, 0x7, 0x6, 0x7, 0x7,
+			0x8
+        };
+        BitArray_num_set_bits += bits_set_count_table[bit_array->data[i]];
+	}
+
+	// Check the remaining bits in the last byte
+	index_t curr_bit_index = num_full_bytes * CHAR_BIT;
+	index_t remaining_bits = bit_array->num_bits - curr_bit_index;
+
+	for (index_t i = 0; i < remaining_bits; i++)
+		if (BitArray_check_bit(bit_array, curr_bit_index++) == BIT_SET)
+			BitArray_num_set_bits++;
+
+    return BitArray_num_set_bits;
+}
+
+// Private helper function to search for a particular bit
+static index_t internal_BitARray_find_bit(const BitArray* bit_array,
+                                          index_t initial_index, 
+                                          BitState find_bit_state, 
+                                          SearchDirection search_direction)
+{
+	internal_BitArray_validate_index(bit_array, initial_index);
+ 
+    if ((initial_index == 0 && search_direction == SEARCH_BACKWARD) ||
+        (initial_index == bit_array->num_bits - 1 && search_direction == SEARCH_FORWARD))
+        return initial_index;
+    
+    index_t curr_index = initial_index + search_direction;
+    while (curr_index > 0 && curr_index < bit_array->num_bits) {
+        BitState curr_bit_state = BitArray_check_bit(bit_array, curr_index);
+        if (curr_bit_state == find_bit_state)
+            return curr_index;
+        curr_index += search_direction;
+    }
+
+    // Check the 0th index if going backwards
+    if (search_direction == SEARCH_BACKWARD && BitArray_check_bit(bit_array, 0) == find_bit_state)
+        return 0;
+
+    return initial_index;
+}
+
+inline index_t BitArray_num_clear_bits(const BitArray* bit_array)
+{
+	return (bit_array->num_bits - BitArray_num_set_bits(bit_array));
+}
+
+inline index_t BitArray_next_set_bit(const BitArray* bit_array, index_t initial_index)
+{	
+	return internal_BitARray_find_bit(bit_array, initial_index, BIT_SET, SEARCH_FORWARD);
+}
+
+inline index_t BitArray_next_clear_bit(const BitArray* bit_array, index_t initial_index)
+{	
+	return internal_BitARray_find_bit(bit_array, initial_index, BIT_CLEAR, SEARCH_FORWARD);
+}
+
+inline index_t BitArray_prev_set_bit(const BitArray* bit_array, index_t initial_index)
+{
+	return internal_BitARray_find_bit(bit_array, initial_index, BIT_SET, SEARCH_BACKWARD);
+}
+
+inline index_t BitArray_prev_clear_bit(const BitArray* bit_array, index_t initial_index)
+{
+	return internal_BitARray_find_bit(bit_array, initial_index, BIT_CLEAR, SEARCH_BACKWARD);
 }
 
 #endif /* BIT_ARRAY_IMPLEMENTATION */
