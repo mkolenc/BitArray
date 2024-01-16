@@ -20,6 +20,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 // Constants
 enum BitState {
@@ -49,9 +50,15 @@ void BitArray_set_bit(BitArray* bit_array, index_t bit_index);
 void BitArray_clear_bit(BitArray* bit_array, index_t bit_index);
 void BitArray_toggle_bit(BitArray* bit_array, index_t bit_index);
 
-void BitArray_set_bits(BitArray* bit_array, index_t num_bits_to_set, ...);
-void BitArray_clear_bits(BitArray* bit_array, index_t num_bits_to_clear, ...);
-void BitArray_toggle_bits(BitArray* bit_array, index_t num_bits_to_toggle, ...);
+// Macros
+#define BitArray_set_bits(bit_array, num_bits_to_set, ...) \
+    internal_BitArray_modify_bits(bit_array, BitArray_set_bit, num_bits_to_set, __VA_ARGS__)
+
+#define BitArray_clear_bits(bit_array, num_bits_to_clear, ...) \
+    internal_BitArray_modify_bits(bit_array, BitArray_clear_bit, num_bits_to_clear, __VA_ARGS__)
+
+#define BitArray_toggle_bits(bit_array, num_bits_to_toggle, ...) \
+    internal_BitArray_modify_bits(bit_array, BitArray_toggle_bit, num_bits_to_toggle, __VA_ARGS__)
 
 // Region Operations
 // ----------------------------------------------------------------------------------------------------------
@@ -91,15 +98,17 @@ BitArray* BitArray_load(const char file_name[]);
 
 #ifdef BIT_ARRAY_IMPLEMENTATION
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
+#include <stdarg.h>
 
 // Constants
 #define SET_BYTE ((unsigned char) ~0)
 #define CLEAR_BYTE ((unsigned char) 0)
+#define FILE_HEADER "BitArray_Data_File"
+#define HEADER_LEN (18)
 
 enum SearchDirection {
     SEARCH_BACKWARD = -1,
@@ -114,6 +123,7 @@ enum SearchDirection {
 #define GET_MASK(index) (1 << (CHAR_BIT - BIT_OFFSET(index) - 1)) // Generate a bit mask with a specific bit set for an unsigned char.
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#define ELLIPSE_UPWRAP(...)
 
 // Typedefs
 typedef enum SearchDirection SearchDirection;
@@ -144,7 +154,7 @@ BitArray* BitArray_init(index_t size, BitState initial_bit_state)
     if (initial_bit_state == BIT_SET)
         memset(bit_array->data, SET_BYTE, num_bytes);
     else
-        memset(bit_array->data, CLEAR_BYTE num_bytes);
+        memset(bit_array->data, CLEAR_BYTE, num_bytes);
 
     return bit_array;
 }
@@ -157,9 +167,9 @@ inline void BitArray_free(BitArray* bit_array)
 BitArray* BitArray_resize(BitArray* bit_array, index_t new_num_bits)
 {	
 	// Attempt to resize the BitArray by reallocating memory
-	unsigned char* tmp = (unsigned char*) realloc(bit_array, sizeof(*bit_array) + (BYTES_FROM_BITS(new_num_bits) * sizeof(unsigned char)));
+	BitArray* tmp = (BitArray*) realloc(bit_array, sizeof(*bit_array) + (BYTES_FROM_BITS(new_num_bits) * sizeof(unsigned char)));
 	if (tmp == NULL) {
-        fprintf(stderr, "Unable to resize BitArray to size %zu: %zu\n", new_num_bits, strerror(errno));
+        fprintf(stderr, "Unable to resize BitArray to size %zu: %s\n", new_num_bits, strerror(errno));
         return NULL;
     }
     bit_array = tmp;
@@ -238,21 +248,6 @@ void internal_BitArray_modify_bits(BitArray* bit_array,
 	va_end(arg_list);
 }
 
-inline void BitArray_set_bits(BitArray* bit_array, index_t num_bits_to_set, ...)
-{
-    internal_BitArray_modify_bits(bit_array, BitArray_set_bit, num_bits_to_set, ...);
-}
-
-inline void BitArray_clear_bits(BitArray* bit_array, index_t num_bits_to_clear, ...)
-{
-    internal_BitArray_modify_bits(bit_array, BitArray_clear_bit, num_bits_to_clear, ...);
-}
-
-inline void BitArray_toggle_bits(BitArray* bit_array, index_t num_bits_to_toggle, ...)
-{
-    internal_BitArray_modify_bits(bit_array, BitArray_toggle_bit, num_bits_to_toggle, ...);
-}
-
 // Private helper function to operate on a region of the BitArray
 // bit_operation is a function pointer to either BitArray_clear_bit, BitArray_set_bit or BitArray_toggle_bit.
 static void internal_BitArray_operate_region(BitArray* bit_array, 
@@ -272,7 +267,7 @@ static void internal_BitArray_operate_region(BitArray* bit_array,
 	// Operate on bits within the same byte
 	if ((start_byte == end_byte)) {
 		for (index_t i = start_bit_index; i <= end_bit_index; i++)
-			bit_operation(bit_array, index);
+			bit_operation(bit_array, i);
 		return;
 	}
 
@@ -432,6 +427,94 @@ inline index_t BitArray_prev_set_bit(const BitArray* bit_array, index_t initial_
 inline index_t BitArray_prev_clear_bit(const BitArray* bit_array, index_t initial_index)
 {
 	return internal_BitARray_find_bit(bit_array, initial_index, BIT_CLEAR, SEARCH_BACKWARD);
+}
+
+void BitArray_print(const BitArray* bit_array, FILE* file_stream, index_t bits_per_line)
+{
+    for (index_t i = 1; i <= bit_array->num_bits; i++)
+        fprintf(file_stream, "%c%s", (BitArray_check_bit(bit_array, i - 1) == BIT_SET ? '1' : '0'), (i % bits_per_line == 0 ? "\n" : ", "));
+    fputc('\n', file_stream);
+}
+
+bool BitArray_save(const BitArray* bit_array, const char file_name[])
+{
+	FILE* fp = fopen(file_name, "w+b");
+	if (fp == NULL) {
+		fprintf(stderr, "Error saving BitArray '%s': %s\n", file_name, strerror(errno));
+		return false;
+	}
+
+	bool result = true;
+    const index_t num_bytes = sizeof(*bit_array) + (BYTES_FROM_BITS(bit_array->num_bits) * sizeof(unsigned char));
+
+	if ((fwrite(FILE_HEADER, sizeof(char), HEADER_LEN, fp) != HEADER_LEN) ||
+        (fwrite(bit_array, 1, num_bytes, fp) != num_bytes)) {
+			fprintf(stderr, "Error saving BitArray '%s': %s,\n", file_name, strerror(errno));
+			result = false;
+	}
+
+	if (fclose(fp) == EOF) {
+		fprintf(stderr, "Error saving BitArray '%s': %s\n", file_name, strerror(errno));
+		result = false;
+	}
+
+	return result;
+}
+
+// Private helper function to avoid code duplication
+static void internal_BitArray_error_and_fclose(FILE* fp, const char message[])
+{
+    fprintf(stderr, "%s\n", message);
+    if (fclose(fp) == EOF)
+        perror("Error closing file");
+}
+
+BitArray* BitArray_load(const char file_name[])
+{
+	char file_header[HEADER_LEN + 1] = {[HEADER_LEN] = '\0'};
+
+	FILE* fp = fopen(file_name, "rb");
+	if (fp == NULL) {
+		fprintf(stderr, "Unable to open'%s': %s\n", file_name, strerror(errno));
+		return NULL;
+	}
+
+	// Try to read the header and check that this file contains the right data
+	if ((fread(file_header, sizeof(char), HEADER_LEN, fp) != HEADER_LEN) || 
+		(strcmp(file_header, FILE_HEADER) != 0)) {
+        internal_BitArray_error_and_fclose(fp, "Error, expected a previously saved BitArray file");
+		return NULL;
+	}
+
+    // Read the size of the stored BitArray
+    size_t num_bits;
+    if (fread(&num_bits, sizeof(size_t), 1, fp) != 1) {
+        internal_BitArray_error_and_fclose(fp, "Error reading file data");
+		return NULL;
+    }
+
+    // Allocate storage
+    size_t num_bytes = sizeof(BitArray) + (BYTES_FROM_BITS(num_bits) * sizeof(unsigned char));
+    BitArray* bit_array = (BitArray*) malloc(num_bytes);
+    if (bit_array == NULL) {
+        internal_BitArray_error_and_fclose(fp, "Error loading BitArray, not enough space");
+		return NULL;
+    }
+    bit_array->num_bits = num_bits;
+
+    // Read data into bit_array
+    index_t remaining_bytes = BYTES_FROM_BITS(num_bits) * sizeof(unsigned char);
+    if (fread(bit_array->data, 1, num_bytes, fp) != remaining_bytes) {
+        internal_BitArray_error_and_fclose(fp, "Error reading file data");
+		return NULL;
+    }
+    
+	if (fclose(fp) == EOF) {
+		fprintf(stderr, "Error closing '%s': %s\n", file_name, strerror(errno));
+		return NULL;
+	}
+
+	return bit_array;
 }
 
 #endif /* BIT_ARRAY_IMPLEMENTATION */
