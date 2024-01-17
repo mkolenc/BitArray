@@ -105,8 +105,8 @@ BitArray* BitArray_load(const char file_name[]);
 #include <stdarg.h>
 
 // Constants
-#define SET_BYTE ((unsigned char) ~0)
-#define CLEAR_BYTE ((unsigned char) 0)
+#define SET_BYTE ((Byte) ~0)
+#define CLEAR_BYTE ((Byte) 0)
 #define FILE_HEADER "BitArray_Data_File"
 #define HEADER_LEN (18)
 
@@ -120,17 +120,18 @@ enum SearchDirection {
 #define POSITIVE_CEIL(x) ((x) > ((index_t)(x)) ? ((index_t)(x) + 1) : ((index_t)(x))) 
 #define BYTE_INDEX(index) ((index) / CHAR_BIT)
 #define BIT_OFFSET(index) ((index) % CHAR_BIT)
-#define GET_MASK(index) (1 << (CHAR_BIT - BIT_OFFSET(index) - 1)) // Generate a bit mask with a specific bit set for an unsigned char.
+#define GET_MASK(index) (1 << (CHAR_BIT - BIT_OFFSET(index) - 1)) // Generate a bit mask with a specific bit set for an Byte.
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 
 // Typedefs
 typedef enum SearchDirection SearchDirection;
+typedef unsigned char Byte;
 
 // Structure
 struct BitArray {
     index_t num_bits;
-	unsigned char data[];
+	Byte data[];
 };
 
 BitArray* BitArray_init(index_t size, BitState initial_bit_state) 
@@ -143,9 +144,9 @@ BitArray* BitArray_init(index_t size, BitState initial_bit_state)
 
     // Allocate memory for the BitArray structure
     index_t num_bytes = BYTES_FROM_BITS(size);
-    BitArray* bit_array = (BitArray*) malloc(sizeof(*bit_array) + (num_bytes * sizeof(unsigned char)));
+    BitArray* bit_array = malloc(sizeof(*bit_array) + (num_bytes * sizeof(Byte)));
     if (bit_array == NULL) {
-        fprintf(stderr, "Error allocating space for the BitArray with %zu bits: %s\n", size, strerror(errno));
+        fprintf(stderr, "Error allocating space for the BitArray of size %zu bits: %s\n", size, strerror(errno));
         return NULL;
     }
     bit_array->num_bits = size;
@@ -166,9 +167,9 @@ inline void BitArray_free(BitArray* bit_array)
 BitArray* BitArray_resize(BitArray* bit_array, index_t new_num_bits)
 {	
 	// Attempt to resize the BitArray by reallocating memory
-	BitArray* tmp = (BitArray*) realloc(bit_array, sizeof(*bit_array) + (BYTES_FROM_BITS(new_num_bits) * sizeof(unsigned char)));
+	BitArray* tmp = realloc(bit_array, sizeof(*bit_array) + (BYTES_FROM_BITS(new_num_bits) * sizeof(Byte)));
 	if (tmp == NULL) {
-        fprintf(stderr, "Unable to resize BitArray to size %zu: %s\n", new_num_bits, strerror(errno));
+        fprintf(stderr, "Unable to resize BitArray to size %zu bits: %s\n", new_num_bits, strerror(errno));
         return NULL;
     }
     bit_array = tmp;
@@ -184,12 +185,12 @@ BitArray* BitArray_resize(BitArray* bit_array, index_t new_num_bits)
 BitArray* BitArray_copy(const BitArray* old_BitArray) 
 {
     // Calculate the size in bytes of the BitArray
-    index_t size = sizeof(*old_BitArray) + (BYTES_FROM_BITS(old_BitArray->num_bits) * sizeof(unsigned char));
+    index_t size = sizeof(*old_BitArray) + (BYTES_FROM_BITS(old_BitArray->num_bits) * sizeof(Byte));
 
     // Allocate memory for the duplicate BitArray
-    BitArray* new_BitArray = (BitArray*) malloc(size);
+    BitArray* new_BitArray = malloc(size);
     if (new_BitArray == NULL) {
-        fprintf(stderr, "Error allocating space for the duplicate BitArray: %s\n", strerror(errno));
+        perror("Error allocating space for the duplicate BitArray");
         return NULL;
     }
 
@@ -287,7 +288,7 @@ static void internal_BitArray_operate_region(BitArray* bit_array,
     }
 
 	// Operate on the remaining bytes 
-	unsigned char* ptr = bit_array->data + start_byte;
+	Byte* ptr = bit_array->data + start_byte;
     index_t remaining_bytes = end_byte - start_byte + 1;
 
     if (bit_operation == BitArray_clear_bit)
@@ -341,8 +342,8 @@ index_t BitArray_num_set_bits(const BitArray* bit_array)
     index_t BitArray_num_set_bits = 0;
 
     for (index_t i = 0; i < num_full_bytes; i++) {
-		// Used to map an unsigned char to the number of 'ON' bits
-		static const unsigned char bits_set_count_table[SET_BYTE + 1] = {
+		// Used to map a Byte to the number of 'ON' bits
+		static const Byte bits_set_count_table[SET_BYTE + 1] = {
 			0x0, 0x1, 0x1, 0x2, 0x1, 0x2, 0x2, 0x3, 0x1, 0x2, 0x2, 0x3, 0x2, 0x3, 0x3,
 			0x4, 0x1, 0x2, 0x2, 0x3, 0x2, 0x3, 0x3, 0x4, 0x2, 0x3, 0x3, 0x4, 0x3, 0x4,
 			0x4, 0x5, 0x1, 0x2, 0x2, 0x3, 0x2, 0x3, 0x3, 0x4, 0x2, 0x3, 0x3, 0x4, 0x3,
@@ -444,7 +445,7 @@ bool BitArray_save(const BitArray* bit_array, const char file_name[])
 	}
 
 	bool result = true;
-    const index_t num_bytes = sizeof(*bit_array) + (BYTES_FROM_BITS(bit_array->num_bits) * sizeof(unsigned char));
+    const index_t num_bytes = sizeof(*bit_array) + (BYTES_FROM_BITS(bit_array->num_bits) * sizeof(Byte));
 
 	if ((fwrite(FILE_HEADER, sizeof(char), HEADER_LEN, fp) != HEADER_LEN) ||
         (fwrite(bit_array, 1, num_bytes, fp) != num_bytes)) {
@@ -474,7 +475,7 @@ BitArray* BitArray_load(const char file_name[])
 
 	FILE* fp = fopen(file_name, "rb");
 	if (fp == NULL) {
-		fprintf(stderr, "Unable to open'%s': %s\n", file_name, strerror(errno));
+		fprintf(stderr, "Unable to open '%s': %s\n", file_name, strerror(errno));
 		return NULL;
 	}
 
@@ -493,8 +494,8 @@ BitArray* BitArray_load(const char file_name[])
     }
 
     // Allocate storage
-    size_t num_bytes = sizeof(BitArray) + (BYTES_FROM_BITS(num_bits) * sizeof(unsigned char));
-    BitArray* bit_array = (BitArray*) malloc(num_bytes);
+    size_t num_bytes = sizeof(BitArray) + (BYTES_FROM_BITS(num_bits) * sizeof(Byte));
+    BitArray* bit_array = malloc(num_bytes);
     if (bit_array == NULL) {
         internal_BitArray_error_and_fclose(fp, "Error loading BitArray, not enough space");
 		return NULL;
@@ -502,7 +503,7 @@ BitArray* BitArray_load(const char file_name[])
     bit_array->num_bits = num_bits;
 
     // Read data into bit_array
-    index_t remaining_bytes = BYTES_FROM_BITS(num_bits) * sizeof(unsigned char);
+    index_t remaining_bytes = BYTES_FROM_BITS(num_bits) * sizeof(Byte);
     if (fread(bit_array->data, 1, num_bytes, fp) != remaining_bytes) {
         internal_BitArray_error_and_fclose(fp, "Error reading file data");
 		return NULL;
