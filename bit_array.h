@@ -506,11 +506,13 @@ BitArray* BitArray_load(const char file_name[])
     index_t remaining_bytes = BYTES_FROM_BITS(num_bits) * sizeof(Byte);
     if (fread(bit_array->data, 1, num_bytes, fp) != remaining_bytes) {
         internal_BitArray_error_and_fclose(fp, "Error reading file data");
+	    free(bit_array);
 		return NULL;
     }
     
 	if (fclose(fp) == EOF) {
 		fprintf(stderr, "Error closing '%s': %s\n", file_name, strerror(errno));
+		free(bit_array);
 		return NULL;
 	}
 
