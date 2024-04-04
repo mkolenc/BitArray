@@ -61,9 +61,9 @@
 
 ### Bit Operations
 
-- **Determine the state of a specific bit.**
+- **Determine the state of a specific bit.** non-zero for set, 0 for clear
     ```c
-    BitState BitArray_check_bit(const BitArray* bit_array, index_t bit_index)
+    uint8_t BitArray_check_bit(const BitArray* bit_array, index_t bit_index)
     ```
 
 - **Set a specific bit in the BitArray.**
