@@ -22,35 +22,28 @@
 #include <stddef.h>
 #include <stdio.h>
 
-// Constants
-enum BitState {
-    BIT_CLEAR,
-    BIT_SET
-};
-
 // typedefs
 typedef struct BitArray BitArray;
 typedef size_t index_t;
-typedef enum BitState BitState;
 
 // Initialization
 // ----------------------------------------------------------------------------------------------------------
 
 BitArray* BitArray_init(index_t size); // Tested
-BitArray* BitArray_init_from_hex(const char* str);
-BitArray* BitArray_init_from_bin(const char* str);
+BitArray* BitArray_init_from_hex(const char* str); // Tested
+BitArray* BitArray_init_from_bin(const char* str); // Tested
 
 // Memory Management
 // ----------------------------------------------------------------------------------------------------------
 
-void BitArray_free(BitArray* bit_array);
-BitArray* BitArray_resize(BitArray* bit_array, index_t size);
-BitArray* BitArray_copy(const BitArray* bit_array);
+void BitArray_free(BitArray* bit_array); // if this fails you have bigger, os problems...
+BitArray* BitArray_resize(BitArray* bit_array, index_t size); // Tested
+BitArray* BitArray_copy(const BitArray* bit_array); // Tested
 
 // Bit Operations
 // ----------------------------------------------------------------------------------------------------------
 
-char BitArray_check_bit(const BitArray* bit_array, index_t bit_index); // tested
+bool BitArray_check_bit(const BitArray* bit_array, index_t bit_index); // tested
 void BitArray_set_bit(BitArray* bit_array, index_t bit_index); // Tested
 void BitArray_clear_bit(BitArray* bit_array, index_t bit_index); // Tested
 void BitArray_toggle_bit(BitArray* bit_array, index_t bit_index); // Tested
@@ -83,10 +76,24 @@ index_t BitArray_size(const BitArray* bit_array);
 index_t BitArray_num_set_bits(const BitArray* bit_array);
 index_t BitArray_num_clear_bits(const BitArray* bit_array);
 
-index_t BitArray_next_set_bit(const BitArray* bit_array, index_t initial_index);
-index_t BitArray_next_clear_bit(const BitArray* bit_array, index_t initial_index);
-index_t BitArray_prev_set_bit(const BitArray* bit_array, index_t initial_index);
-index_t BitArray_prev_clear_bit(const BitArray* bit_array, index_t initial_index);
+bool BitArray_next_set_bit(const BitArray* bit_array, index_t initial_index, index_t* result);
+bool BitArray_next_clear_bit(const BitArray* bit_array, index_t initial_index, index_t* result);
+bool BitArray_prev_set_bit(const BitArray* bit_array, index_t initial_index, index_t* result);
+bool BitArray_prev_clear_bit(const BitArray* bit_array, index_t initial_index, index_t* result);
+
+bool BitArray_first_clear_bit(const BitArray* bit_array, index_t* result);
+bool BitArray_first_set_bit(const BitArray* bit_array, index_t* result);
+bool BitArray_last_clear_bit(const BitArray* bit_array, index_t* result);
+bool BitArray_last_set_bit(const BitArray* bit_array, index_t* result);
+
+// String functions
+// ----------------------------------------------------------------------------------------------------------
+
+index_t BitArray_min_hex_str_len(const BitArray* bit_array);
+index_t BitArray_min_bin_str_len(const BitArray* bit_array);
+
+char* BitArray_to_hex_str(const BitArray* bit_array, char* dst);
+char* BitArray_to_bin_str(const BitArray* bit_array, char* dst);
 
 // File Operations
 // ----------------------------------------------------------------------------------------------------------
@@ -96,15 +103,6 @@ void BitArray_print_bin(const BitArray* bit_array, FILE* file_stream, index_t ch
 
 bool BitArray_save(const BitArray* bit_array, const char file_name[]);
 BitArray* BitArray_load(const char file_name[]);
-
-
-
-index_t BitArray_min_hex_str_len(const BitArray* bit_array);
-
-index_t BitArray_min_bin_str_len(const BitArray* bit_array);
-void BitArray_to_hex_str(const BitArray* bit_array, char* dst);
-
-char* BitArray_to_bin_str(const BitArray* bit_array, char* dst);
 
 
 
@@ -141,6 +139,11 @@ typedef enum SearchDirection {
     SEARCH_FORWARD = 1
 } SearchDirection;
 
+typedef enum BitState {
+    BIT_CLEAR = 0,
+    BIT_SET = 1
+} BitState;
+
 // Macro functions
 #define BYTES_FROM_BITS(bits) POS_CEIL(((long double) bits) / UINT8_WIDTH)
 #define BYTE_INDEX(index) ((index) / UINT8_WIDTH)
@@ -164,19 +167,12 @@ typedef enum SearchDirection {
 // Note: assert statements are used for checking valid indicies, and non-NULL strings.
 //       If user is confident in use, can add -D NDEBUG for faster code with disabled error checking
 
+// Add pre-conditions that lib expects non-NULL arguments, it checks for valid indicies, and resonable errors
+// but blatantly passing in something like BitArray_copy(NULL) will crash / is undefined. Also things like
+// File pointers are not NULL and valid files, same with bit_arrays are valid / intiilized arrays...
+
 
 ////////// Additional functionality ?/////////
-
-/*  String functions: (also need to implement for testing)
-    - to_hex_str
-    - to_bin_str
-    - min_str_len (minimum lenght array needed to save bit array as hex/bin string)
-*/
-
-/*  quick add to infromation retrevial:
-    - first_set_bit / clear_bit
-    - last_set_bit / clear_bit
-*/
 
 /*  bitwise / logical operations:
     - and
@@ -281,7 +277,7 @@ BitArray* BitArray_init_from_bin(const char* str)
     return bit_array;
 }
 
-inline void BitArray_free(BitArray* bit_array)
+void BitArray_free(BitArray* bit_array)
 {
     free(bit_array->data);
     free(bit_array);
@@ -289,30 +285,39 @@ inline void BitArray_free(BitArray* bit_array)
 
 BitArray* BitArray_resize(BitArray* bit_array, index_t size)
 {
-    BitArray* tmp = realloc(bit_array, sizeof(*bit_array) + BYTES_FROM_BITS(size));
+    if (size == 0) {
+        return NULL;
+    }
+        
+    uint8_t* tmp = realloc(bit_array->data, BYTES_FROM_BITS(size));
     if (tmp == NULL) {
         fprintf(stderr, "Unable to resize BitArray to size %zu bits: %s\n", size, strerror(errno));
         return NULL;
     }
-    tmp->num_bits = size;
 
-    if (size > tmp->num_bits)
-        BitArray_clear_region(bit_array, tmp->num_bits, size - 1);
+    index_t old_size = bit_array->num_bits;
 
-    return tmp;
+    bit_array->data = tmp;
+    bit_array->num_bits = size;
+
+    if (size > old_size)
+        BitArray_clear_region(bit_array, old_size, size - 1);
+
+    return bit_array;
 }
 
 BitArray* BitArray_copy(const BitArray* bit_array)
 {
-    index_t size = sizeof(*bit_array) + BYTES_FROM_BITS(bit_array->num_bits);
+    BitArray* new_bit_array = BitArray_init(bit_array->num_bits);
+    if (new_bit_array == NULL)
+        return NULL;
 
-    BitArray* new_bit_array = BitArray_init(size);
-    memcpy(new_bit_array, bit_array, size);
+    memcpy(new_bit_array->data, bit_array->data, BYTES_FROM_BITS(bit_array->num_bits));
 
     return new_bit_array;
 }
 
-char BitArray_check_bit(const BitArray* bit_array, index_t bit_index)
+bool BitArray_check_bit(const BitArray* bit_array, index_t bit_index)
 {
     assert(bit_index < bit_array->num_bits && "Bit index is out of range");
     return (bit_array->data[BYTE_INDEX(bit_index)] & GET_MASK(bit_index));
@@ -478,56 +483,78 @@ index_t BitArray_num_set_bits(const BitArray* bit_array)
     return BitArray_num_set_bits;
 }
 
-index_t internal_BitARray_find_bit(const BitArray* bit_array,
-                                          index_t initial_index,
-                                          BitState find_bit_state,
-                                          SearchDirection search_direction)
-{
-    assert(initial_index < bit_array->num_bits && "Bit index is out of range");
-
-    if ((initial_index == 0 && search_direction == SEARCH_BACKWARD) ||
-        (initial_index == bit_array->num_bits - 1 && search_direction == SEARCH_FORWARD))
-        return initial_index;
-
-    index_t curr_index = initial_index + search_direction;
-    while (curr_index > 0 && curr_index < bit_array->num_bits) {
-        if (BitArray_check_bit(bit_array, curr_index) == find_bit_state)
-            return curr_index;
-
-        curr_index += search_direction;
-    }
-
-    // Check the 0th index seperatly if going backwards
-    if (search_direction == SEARCH_BACKWARD &&
-        BitArray_check_bit(bit_array, 0) == find_bit_state)
-        return 0;
-
-    return initial_index;
-}
-
 inline index_t BitArray_num_clear_bits(const BitArray* bit_array)
 {
     return bit_array->num_bits - BitArray_num_set_bits(bit_array);
 }
 
-inline index_t BitArray_next_set_bit(const BitArray* bit_array, index_t initial_index)
+// initial_index is inclusive, 
+bool internal_BitARray_find_bit(const BitArray* bit_array,
+                                          index_t initial_index,
+                                          index_t* result,
+                                          BitState find_bit_state,
+                                          SearchDirection search_direction)
 {
-    return internal_BitARray_find_bit(bit_array, initial_index, BIT_SET, SEARCH_FORWARD);
+    assert(initial_index < bit_array->num_bits && "Bit index is out of range");
+
+    while (initial_index > 0 && initial_index < bit_array->num_bits) {
+        if (BitArray_check_bit(bit_array, initial_index) == find_bit_state) {
+            *result = initial_index;
+            return true;
+        }
+        initial_index += search_direction;
+    }
+
+    // Check 0'th index seperatly if going backwards
+    if (search_direction == SEARCH_BACKWARD &&
+        BitArray_check_bit(bit_array, 0) == find_bit_state) {
+        *result = 0;
+        return true;
+    }
+
+    return false; 
 }
 
-inline index_t BitArray_next_clear_bit(const BitArray* bit_array, index_t initial_index)
+// If found, return true and save result in *result, else return false and dont change *result
+// Index is inclusive
+inline bool BitArray_next_set_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
 {
-    return internal_BitARray_find_bit(bit_array, initial_index, BIT_CLEAR, SEARCH_FORWARD);
+    return internal_BitARray_find_bit(bit_array, initial_index, result, BIT_SET, SEARCH_FORWARD);
 }
 
-inline index_t BitArray_prev_set_bit(const BitArray* bit_array, index_t initial_index)
+inline bool BitArray_next_clear_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
 {
-    return internal_BitARray_find_bit(bit_array, initial_index, BIT_SET, SEARCH_BACKWARD);
+    return internal_BitARray_find_bit(bit_array, initial_index, result, BIT_CLEAR, SEARCH_FORWARD);
 }
 
-inline index_t BitArray_prev_clear_bit(const BitArray* bit_array, index_t initial_index)
+inline bool BitArray_prev_set_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
 {
-    return internal_BitARray_find_bit(bit_array, initial_index, BIT_CLEAR, SEARCH_BACKWARD);
+    return internal_BitARray_find_bit(bit_array, initial_index, result, BIT_SET, SEARCH_BACKWARD);
+}
+
+inline bool BitArray_prev_clear_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
+{
+    return internal_BitARray_find_bit(bit_array, initial_index, result, BIT_CLEAR, SEARCH_BACKWARD);
+}
+
+inline bool BitArray_first_clear_bit(const BitArray* bit_array, index_t* result)
+{
+    return BitArray_next_clear_bit(bit_array, 0, result);
+}
+
+inline bool BitArray_first_set_bit(const BitArray* bit_array, index_t* result)
+{
+    return BitArray_next_set_bit(bit_array, 0, result);
+}
+
+inline bool BitArray_last_clear_bit(const BitArray* bit_array, index_t* result)
+{
+    return BitArray_prev_clear_bit(bit_array, bit_array->num_bits - 1, result);
+}
+
+inline bool BitArray_last_set_bit(const BitArray* bit_array, index_t* result)
+{
+    return BitArray_prev_set_bit(bit_array, bit_array->num_bits - 1, result);
 }
 
 index_t BitArray_min_hex_str_len(const BitArray* bit_array)
@@ -542,24 +569,28 @@ index_t BitArray_min_bin_str_len(const BitArray* bit_array)
 
 // Guarentees dst is a valid string by writing a null-terminator at the end
 // dst should be atleast BitArray_min_hex_str_len();
-void BitArray_to_hex_str(const BitArray* bit_array, char* dst)
+char* BitArray_to_hex_str(const BitArray* bit_array, char* dst)
 {
     assert(dst != NULL);
+    char* tmp = dst;
 
     size_t num_nibbles = BitArray_min_hex_str_len(bit_array) - 1;
     for (index_t i = 1; i <= num_nibbles; ++i) {
         uint8_t nibble = bit_array->data[(i - 1) / 2] & (0XF << ((i & 1) * 4));
-        sprintf(dst++, "%x", nibble);
+        sprintf(dst++, "%X", nibble);
     }
     *dst = '\0';
+
+    return tmp;
 }
 
 char* BitArray_to_bin_str(const BitArray* bit_array, char* dst)
 {
     assert(dst != NULL);
     char* tmp = dst;
-    for (index_t i = 0; i < bit_array->num_bits; ++i)
-        *tmp++ = BitArray_check_bit(bit_array, i) ? '1' : '0';
+
+    for (index_t i = 0; i < BitArray_min_bin_str_len(bit_array) - 1; ++i)
+        *tmp++ = BitArray_check_bit(bit_array, i) + '0';
     *tmp = '\0';
 
     return dst;

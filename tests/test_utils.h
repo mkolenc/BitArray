@@ -6,13 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <setjmp.h>
+#include <fcntl.h>
+#include <unistd.h>
 
-#include <setjmp.h>
 
 #define ERROR_FILE_NAME "error.log"
 FILE* _error_log_fp;
+fpos_t _error_log_position;
 
-#define BUFFER_LEN 200
+#define BUFFER_LEN 1024
 char BUFFER[BUFFER_LEN] = {0};
 
 // Macros for testing
@@ -35,13 +37,16 @@ char BUFFER[BUFFER_LEN] = {0};
     ASSERT_TRUE((x) == (y))
 
 #define ASSERT_STR_EQUAL(str1, str2) \
-    ASSERT_EQUALS(strcmp(str1, str2), 0)
+    ASSERT_TRUE(strcmp(str1, str2) == 0)
 
-#define ASSERT_PRODUCED_ERROR_MSG(msg) \
-    do { \
-        ASSERT_NOT_NULL(fgets(BUFFER, BUFFER_LEN, _error_log_fp)); \
-        ASSERT_STR_EQUAL(BUFFER, msg); \
-    } while (0)
+ #define CAPTURE_ERRORS(buffer, ...) \
+        do { \
+            fgetpos(_error_log_fp, &_error_log_position); \
+            __VA_ARGS__; \
+            fflush(stderr); \
+            fsetpos(_error_log_fp, &_error_log_position); \
+            fgets(buffer, BUFFER_LEN, _error_log_fp); \
+        } while (0)
 
 #define ASSERT_CRASH(code) \
     do { \
@@ -71,27 +76,26 @@ void display_results_(bool passed, const char* test_name, int line_num)
         printf(" FAILED on line %d\n", line_num);
 }
 
-// Used to mock 
+// Used for Mocking assert
 static jmp_buf jump_buffer;
 
-// Mock the assert macro
 #define assert(condition) \
     if (!(condition)) { \
         longjmp(jump_buffer, 1); \
     }
 
-// Mock malloc, calloc, assert 
+#define exit(error_code) longjmp(jump_buffer, 1)
+
+
 #define malloc(x) (MALLOC_FAIL ? NULL : malloc(x))
 #define calloc(x, y) (CALLOC_FAIL ? NULL : calloc(x, y))
-
-// Consitent error messages across systems
-#define strerror(errno) "ERROR"
+#define realloc(x, y) (REALLOC_FAIL ? NULL : realloc((x), (y)))
 
 bool MALLOC_FAIL = false; 
 bool CALLOC_FAIL = false;
+bool REALLOC_FAIL = false;
 
-// // Placeholder definitions for BUFFER and BUFFER_LEN
-// #define BUFFER_LEN 256
-// char BUFFER[BUFFER_LEN];
+// Consitent error messages across systems
+#define strerror(errno) "ERROR"
 
 #endif /* TEST_UTILS */

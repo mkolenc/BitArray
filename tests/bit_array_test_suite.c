@@ -28,13 +28,17 @@ void test_BitArray_init_allocation_failure(void)
     index_t size = 26;
 
 	MALLOC_FAIL = true;
-    ASSERT_NULL(BitArray_init(size));
-	ASSERT_PRODUCED_ERROR_MSG("Failed to allocate BitArray struct: ERROR\n");
+    CAPTURE_ERRORS(BUFFER,
+        ASSERT_NULL(BitArray_init(size));
+    );
+    ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray struct: ERROR\n");
 
 	MALLOC_FAIL = false;
 	CALLOC_FAIL = true;
-	ASSERT_NULL(BitArray_init(size));
-	ASSERT_PRODUCED_ERROR_MSG("Failed to allocate BitArray data of size 26: ERROR\n");
+    CAPTURE_ERRORS(BUFFER,
+        ASSERT_NULL(BitArray_init(size));
+    );
+    ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray data of size 26: ERROR\n");
 }
 
 void test_BitArray_set(void)
@@ -65,6 +69,8 @@ void test_BitArray_set(void)
 
 		ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), str);
 	}
+
+    BitArray_free(bit_array);
 }
 
 void test_BitArray_clear_bit(void)
@@ -96,7 +102,10 @@ void test_BitArray_clear_bit(void)
 
 		ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), str);
 	}
+
+    BitArray_free(bit_array);
 }
+
 void test_BitArray_toggle_bit(void)
 {
 	index_t size = 24;
@@ -125,6 +134,8 @@ void test_BitArray_toggle_bit(void)
 		memset(str, '0', size);
 		ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), str);
 	}
+
+    BitArray_free(bit_array);
 }
 
 void test_BitArray_check_bit(void)
@@ -148,12 +159,136 @@ void test_BitArray_check_bit(void)
 		ASSERT_FALSE(BitArray_check_bit(bit_array, i));
 		BitArray_set_bit(bit_array, i);
 		ASSERT_TRUE(BitArray_check_bit(bit_array, i));
-	}	
+	}
+
+    BitArray_free(bit_array);
+}
+
+void test_BitArray_init_from_hex(void)
+{
+    // Bad wheather tests
+    ASSERT_CRASH(BitArray_init_from_hex(NULL));
+
+    MALLOC_FAIL = true;
+    CAPTURE_ERRORS(BUFFER,
+        ASSERT_NULL(BitArray_init_from_hex("abd00xf"))
+    );
+    ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray struct: ERROR\n");
+
+    MALLOC_FAIL = false;
+    CAPTURE_ERRORS(BUFFER,
+        ASSERT_CRASH(BitArray_init_from_hex("adm0Xf"));
+    );
+    ASSERT_STR_EQUAL(BUFFER, "Invalid hex string\n");
+
+    // good wheather tests
+    BitArray* bit_array = BitArray_init_from_hex("");
+    ASSERT_NOT_NULL(bit_array);
+    ASSERT_TRUE(bit_array->num_bits == 0);
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(bit_array, BUFFER), "");
+
+    bit_array = BitArray_init_from_hex("0123456789aBcDeF");
+    ASSERT_NOT_NULL(bit_array);
+    ASSERT_TRUE(bit_array->num_bits == 64);
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(bit_array, BUFFER), "0123456789ABCDEF");
+    
+    BitArray_free(bit_array);
+}
+
+void test_BitArray_init_from_bin(void)
+{
+    // Bad wheather tests
+    ASSERT_CRASH(BitArray_init_from_bin(NULL));
+
+    MALLOC_FAIL = true;
+    CAPTURE_ERRORS(BUFFER,
+        ASSERT_NULL(BitArray_init_from_bin("010101"))
+    );
+    ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray struct: ERROR\n");
+
+    MALLOC_FAIL = false;
+    CAPTURE_ERRORS(BUFFER,
+        ASSERT_CRASH(BitArray_init_from_bin("0101ff"));
+    );
+    ASSERT_STR_EQUAL(BUFFER, "Invalid binary string.\n");
+
+    // good wheather tests
+    BitArray* bit_array = BitArray_init_from_bin("");
+    ASSERT_NOT_NULL(bit_array);
+    ASSERT_TRUE(bit_array->num_bits == 0);
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "");
+
+    bit_array = BitArray_init_from_bin("00000010101010");
+    ASSERT_NOT_NULL(bit_array);
+    ASSERT_TRUE(bit_array->num_bits == 14);
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "00000010101010");
+    
+    BitArray_free(bit_array);
+}
+
+void test_BitArray_resize(void)
+{
+    index_t size = 64;
+    BitArray* b = BitArray_init(size);
+    ASSERT_NOT_NULL(b);
+
+    ASSERT_NULL(BitArray_resize(b, 0));
+    
+    REALLOC_FAIL = true;
+    CAPTURE_ERRORS(BUFFER, 
+        ASSERT_NULL(BitArray_resize(b, 1902));
+    );
+    ASSERT_STR_EQUAL(BUFFER, "Unable to resize BitArray to size 1902 bits: ERROR\n");
+    REALLOC_FAIL = false;
+
+    BitArray_set(b);
+
+    // Resize to same size (should do nothing)
+    ASSERT_EQUALS(BitArray_resize(b, size), b);
+    ASSERT_EQUALS(b->num_bits, size);
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, BUFFER), "FFFFFFFFFFFFFFFF");
+
+    // Decrease size
+    size = 24;
+    ASSERT_EQUALS(BitArray_resize(b, size), b);
+    ASSERT_EQUALS(b->num_bits, size);
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, BUFFER), "FFFFFF");
+
+    // Increase size, zeros should be added
+    size = 64;
+    ASSERT_EQUALS(BitArray_resize(b, size), b);
+    ASSERT_EQUALS(b->num_bits, size);
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, BUFFER), "FFFFFF0000000000");
+
+    BitArray_free(b);
+}
+
+void test_BitArray_copy(void)
+{
+	BitArray* b = BitArray_init_from_hex("AB2255657B7B756DAA083");
+	ASSERT_NOT_NULL(b);
+
+	MALLOC_FAIL = true;
+	CAPTURE_ERRORS(BUFFER, 
+		ASSERT_NULL(BitArray_copy(b));
+	);
+	MALLOC_FAIL = false;
+
+	BitArray* copy = BitArray_copy(b);
+	ASSERT_STR_EQUAL(BitArray_to_hex_str(copy, BUFFER), "AB2255657B7B756DAA083");
+
+
+	BitArray_free(copy);
+	BitArray_free(b);
 }
 
 /////////////////// end of tests ///////////////////
+
+#ifdef TESTING_ENV
 #undef assert
 #include <assert.h>
+#endif
+
 #include <time.h>
 #include <unistd.h>  // for dup, dup2, close
 
@@ -166,15 +301,11 @@ typedef struct {
 
 
 void before_all_tests(void)
-{	
+{
 	// Redirect stderr to ERROR_FILE_NAME
-	FILE* error_log_fp = fopen(ERROR_FILE_NAME, "w");
-	assert(error_log_fp != NULL);
-	assert(dup2(fileno(error_log_fp), STDERR_FILENO) != -1);
-	fclose(error_log_fp);
-
-	_error_log_fp = fopen(ERROR_FILE_NAME, "r");
+	_error_log_fp = fopen(ERROR_FILE_NAME, "w+");
 	assert(_error_log_fp != NULL);
+	assert(dup2(fileno(_error_log_fp), STDERR_FILENO) != -1);
 }
 
 void after_all_tests(void)
@@ -207,10 +338,14 @@ void run_tests(void)
     TestFunctionInfo test_funcs[] = {
         {test_BitArray_init_success, "test_BitArray_init_success"},
         {test_BitArray_init_allocation_failure, "test_BitArray_init_allocation_failure"},
-        {test_BitArray_set, "test_BitArray_set"}, 
+        {test_BitArray_set, "test_BitArray_set"},
 		{test_BitArray_clear_bit, "test_BitArray_clear_bit"},
 		{test_BitArray_toggle_bit, "test_BitArray_toggle_bit"},
-		{test_BitArray_check_bit, "test_BitArray_check_bit"}
+		{test_BitArray_check_bit, "test_BitArray_check_bit"},
+        {test_BitArray_init_from_hex, "test_BitArray_init_from_hex"}, 
+        {test_BitArray_init_from_bin, "test_BitArray_init_from_bin"}, 
+        {test_BitArray_resize, "test_BitArray_resize"}, 
+		{test_BitArray_copy, "test_BitArray_copy"}
     };
 	const int NUM_TESTS = sizeof(test_funcs) / sizeof(test_funcs[0]);
 
@@ -224,6 +359,7 @@ void run_tests(void)
 		display_results_(true, test_funcs[i].name, __LINE__);
 		MALLOC_FAIL = false;
 		CALLOC_FAIL = false;
+        REALLOC_FAIL = false;
 	}
 }
 

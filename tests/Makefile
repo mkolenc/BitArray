@@ -13,7 +13,6 @@ $(BIN): $(SRC)
 
 clean:
 	rm -f $(BIN)
-
 tests: $(BIN)
 	./$(BIN)
 	$(MAKE) clean -s
