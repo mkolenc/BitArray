@@ -8,11 +8,15 @@
 #include <setjmp.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
 
 
 #define ERROR_FILE_NAME "error.log"
 FILE* _error_log_fp;
 fpos_t _error_log_position;
+size_t bytes_read;
+bool passed;
+int test_line;
 
 #define BUFFER_LEN 1024
 char BUFFER[BUFFER_LEN] = {0};
@@ -20,7 +24,8 @@ char BUFFER[BUFFER_LEN] = {0};
 // Macros for testing
 #define ASSERT_TRUE(condition) \
     if (!(condition)) { \
-        display_results_(false, __func__, __LINE__); \
+        passed = false; \
+        test_line = __LINE__; \
         return; \
     }
 
@@ -45,7 +50,8 @@ char BUFFER[BUFFER_LEN] = {0};
             __VA_ARGS__; \
             fflush(stderr); \
             fsetpos(_error_log_fp, &_error_log_position); \
-            fgets(buffer, BUFFER_LEN, _error_log_fp); \
+            bytes_read = fread(buffer, sizeof(char), BUFFER_LEN - 1, _error_log_fp); \
+            BUFFER[bytes_read] = '\0'; \
         } while (0)
 
 #define ASSERT_CRASH(code) \
@@ -97,5 +103,27 @@ bool REALLOC_FAIL = false;
 
 // Consitent error messages across systems
 #define strerror(errno) "ERROR"
+
+void shuffle_array(void* arr, size_t elem_size, size_t n)
+{
+    if (n <= 1)
+        return;
+
+    char* tmp = (char*) malloc(elem_size);
+    if (tmp == NULL)
+        exit(EXIT_FAILURE);
+    
+    srand(time(NULL));
+    char* array = (char*) arr;
+
+    for (size_t i = 0; i < n; ++i) {
+        size_t j = rand() % n;
+        memcpy(tmp, array + (j * elem_size), elem_size);
+        memcpy(array + (j * elem_size), array + (i * elem_size), elem_size);
+        memcpy(array + (i * elem_size), tmp, elem_size);
+    }
+
+    free(tmp);
+}
 
 #endif /* TEST_UTILS */
