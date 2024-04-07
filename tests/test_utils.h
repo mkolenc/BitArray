@@ -10,13 +10,12 @@
 #include <unistd.h>
 #include <time.h>
 
-
 #define ERROR_FILE_NAME "error.log"
 FILE* _error_log_fp;
 fpos_t _error_log_position;
-size_t bytes_read;
-bool passed;
-int test_line;
+size_t _bytes_read;
+bool _passed;
+int _test_line;
 
 #define BUFFER_LEN 1024
 char BUFFER[BUFFER_LEN] = {0};
@@ -24,8 +23,8 @@ char BUFFER[BUFFER_LEN] = {0};
 // Macros for testing
 #define ASSERT_TRUE(condition) \
     if (!(condition)) { \
-        passed = false; \
-        test_line = __LINE__; \
+        _passed = false; \
+        _test_line = __LINE__; \
         return; \
     }
 
@@ -50,8 +49,8 @@ char BUFFER[BUFFER_LEN] = {0};
             __VA_ARGS__; \
             fflush(stderr); \
             fsetpos(_error_log_fp, &_error_log_position); \
-            bytes_read = fread(buffer, sizeof(char), BUFFER_LEN - 1, _error_log_fp); \
-            BUFFER[bytes_read] = '\0'; \
+            _bytes_read = fread(buffer, sizeof(char), BUFFER_LEN - 1, _error_log_fp); \
+            BUFFER[_bytes_read] = '\0'; \
         } while (0)
 
 #define ASSERT_CRASH(code) \
@@ -63,26 +62,7 @@ char BUFFER[BUFFER_LEN] = {0};
         } \
     } while (0)
 
-// Update and display test status
-int _TEST_COUNT = 0;
-int _TEST_PASS_COUNT = 0;
-
-void display_results_(bool passed, const char* test_name, int line_num)
-{
-    const int right_align_width = 50;
-    printf("%s: ", test_name);
-    for (int i = 0; i < (right_align_width - strlen(test_name)); ++i)
-        putchar('-');
-
-    _TEST_COUNT++;
-    if (passed) {
-        puts(" PASSED");
-        _TEST_PASS_COUNT++;
-    } else
-        printf(" FAILED on line %d\n", line_num);
-}
-
-// Used for Mocking assert
+// Used for Mocking assert and exit
 static jmp_buf jump_buffer;
 
 #define assert(condition) \
@@ -92,18 +72,38 @@ static jmp_buf jump_buffer;
 
 #define exit(error_code) longjmp(jump_buffer, 1)
 
+// Mock memory allocators
+#define malloc(x) (_MALLOC_FAIL ? NULL : malloc(x))
+#define calloc(x, y) (_CALLOC_FAIL ? NULL : calloc(x, y))
+#define realloc(x, y) (_REALLOC_FAIL ? NULL : realloc((x), (y)))
 
-#define malloc(x) (MALLOC_FAIL ? NULL : malloc(x))
-#define calloc(x, y) (CALLOC_FAIL ? NULL : calloc(x, y))
-#define realloc(x, y) (REALLOC_FAIL ? NULL : realloc((x), (y)))
-
-bool MALLOC_FAIL = false; 
-bool CALLOC_FAIL = false;
-bool REALLOC_FAIL = false;
+bool _MALLOC_FAIL = false;
+bool _CALLOC_FAIL = false;
+bool _REALLOC_FAIL = false;
 
 // Consitent error messages across systems
 #define strerror(errno) "ERROR"
 
+// Update and display test status
+int _TEST_COUNT = 0;
+int _TEST_PASS_COUNT = 0;
+
+void display_results(bool _passed, const char* test_name, int line_num)
+{
+    const int right_align_width = 50;
+    printf("%s: ", test_name);
+    for (int i = 0; i < (right_align_width - strlen(test_name)); ++i)
+        putchar('-');
+
+    _TEST_COUNT++;
+    if (_passed) {
+        puts(" PASSED");
+        _TEST_PASS_COUNT++;
+    } else
+        printf(" FAILED on line %d\n", line_num);
+}
+
+// For running tests in random order
 void shuffle_array(void* arr, size_t elem_size, size_t n)
 {
     if (n <= 1)
@@ -112,7 +112,7 @@ void shuffle_array(void* arr, size_t elem_size, size_t n)
     char* tmp = (char*) malloc(elem_size);
     if (tmp == NULL)
         exit(EXIT_FAILURE);
-    
+
     srand(time(NULL));
     char* array = (char*) arr;
 

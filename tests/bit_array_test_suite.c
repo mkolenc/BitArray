@@ -6,19 +6,19 @@
 void test_BitArray_init(void)
 {
     index_t size = 26;
-    MALLOC_FAIL = true;
+    _MALLOC_FAIL = true;
     CAPTURE_ERRORS(BUFFER,
         ASSERT_NULL(BitArray_init(size));
     );
     ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray struct: ERROR\n");
 
-    MALLOC_FAIL = false;
-    CALLOC_FAIL = true;
+    _MALLOC_FAIL = false;
+    _CALLOC_FAIL = true;
     CAPTURE_ERRORS(BUFFER,
         ASSERT_NULL(BitArray_init(size));
     );
     ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray data of size 26: ERROR\n");
-    CALLOC_FAIL = false;
+    _CALLOC_FAIL = false;
 
     size = 0;
     BitArray* bit_array = BitArray_init(size);
@@ -206,13 +206,13 @@ void test_BitArray_init_from_hex(void)
     // Bad wheather tests
     ASSERT_CRASH(BitArray_init_from_hex(NULL));
 
-    MALLOC_FAIL = true;
+    _MALLOC_FAIL = true;
     CAPTURE_ERRORS(BUFFER,
         ASSERT_NULL(BitArray_init_from_hex("abd00xf"))
     );
     ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray struct: ERROR\n");
 
-    MALLOC_FAIL = false;
+    _MALLOC_FAIL = false;
     CAPTURE_ERRORS(BUFFER,
         ASSERT_CRASH(BitArray_init_from_hex("adm0Xf"));
     );
@@ -237,13 +237,13 @@ void test_BitArray_init_from_bin(void)
     // Bad wheather tests
     ASSERT_CRASH(BitArray_init_from_bin(NULL));
 
-    MALLOC_FAIL = true;
+    _MALLOC_FAIL = true;
     CAPTURE_ERRORS(BUFFER,
         ASSERT_NULL(BitArray_init_from_bin("010101"))
     );
     ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray struct: ERROR\n");
 
-    MALLOC_FAIL = false;
+    _MALLOC_FAIL = false;
     CAPTURE_ERRORS(BUFFER,
         ASSERT_CRASH(BitArray_init_from_bin("0101ff"));
     );
@@ -271,12 +271,12 @@ void test_BitArray_resize(void)
 
     ASSERT_NULL(BitArray_resize(b, 0));
 
-    REALLOC_FAIL = true;
+    _REALLOC_FAIL = true;
     CAPTURE_ERRORS(BUFFER,
         ASSERT_NULL(BitArray_resize(b, 1902));
     );
     ASSERT_STR_EQUAL(BUFFER, "Unable to resize BitArray to size 1902 bits: ERROR\n");
-    REALLOC_FAIL = false;
+    _REALLOC_FAIL = false;
 
     BitArray_set(b);
 
@@ -305,11 +305,11 @@ void test_BitArray_copy(void)
     BitArray* b = BitArray_init_from_hex("AB2255657B7B756DAA083");
     ASSERT_NOT_NULL(b);
 
-    MALLOC_FAIL = true;
+    _MALLOC_FAIL = true;
     CAPTURE_ERRORS(BUFFER,
         ASSERT_NULL(BitArray_copy(b));
     );
-    MALLOC_FAIL = false;
+    _MALLOC_FAIL = false;
 
     BitArray* copy = BitArray_copy(b);
     ASSERT_STR_EQUAL(BitArray_to_hex_str(copy, BUFFER), "AB2255657B7B756DAA083");
@@ -601,9 +601,6 @@ void test_BitArray_prev_clear_bit(void)
     BitArray_free(b);
 }
 
-// char* BitArray_to_hex_str(const BitArray* bit_array, char* dst);
-// char* BitArray_to_bin_str(const BitArray* bit_array, char* dst);
-
 void test_BitArray_to_strings(void)
 {
     BitArray* b = BitArray_init_from_hex("");
@@ -685,7 +682,7 @@ void test_BitArray_first_and_last_clear(void)
 
 void test_BitArray_count_bits(void)
 {
-    // check table is correct (every permutaion of byte [0 - 255])
+    // check table is correct (every permutaion of 8 bits [0 - 255])
     index_t size = 8;
     BitArray* b = BitArray_init(size);
     ASSERT_NOT_NULL(b);
@@ -726,7 +723,7 @@ void test_BitArray_count_bits(void)
 #include <assert.h>
 #endif
 
-#include <unistd.h>  // for dup, dup2, close
+#include <unistd.h>  // for dup2
 
 typedef void (*TestFunction)(void);
 
@@ -752,6 +749,19 @@ void after_all_tests(void)
     remove(ERROR_FILE_NAME);
 
     printf("Passed %d/%d tests\n", _TEST_PASS_COUNT, _TEST_COUNT);
+}
+
+void before_each(void)
+{
+    _passed = true;
+}
+
+void after_each(const char* test_name)
+{
+    _MALLOC_FAIL = false;
+    _CALLOC_FAIL = false;
+    _REALLOC_FAIL = false;
+    display_results(_passed, test_name, _test_line);
 }
 
 void run_tests(void)
@@ -789,16 +799,9 @@ void run_tests(void)
     shuffle_array(test_funcs, sizeof(test_funcs[0]), NUM_TESTS);
 
     for (int i = 0; i < NUM_TESTS; ++i) {
-        // before_each
-        passed = true;
-
+        before_each();
         test_funcs[i].function();
-
-        // after_each
-        display_results_(passed, test_funcs[i].name, test_line);
-        MALLOC_FAIL = false;
-        CALLOC_FAIL = false;
-        REALLOC_FAIL = false;
+        after_each(test_funcs[i].name);
     }
 }
 
