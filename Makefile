@@ -3,7 +3,11 @@ TEST_SRC = ./tests/bit_array_test_suite.c
 LIB = libbitarr.a
 
 CC = gcc
-CFLAGS = -std=c11 -w -O2
+CFLAGS = -std=c11 -w -O3
+
+ifdef FAST
+	CFLAGS += -DBIT_ARRAY_FAST
+endif
 
 LIB_SRC = bit_array.c
 LIB_OBJ = $(LIB_SRC:.c=.o)
@@ -24,6 +28,9 @@ $(LIB_OBJ): $(LIB_SRC)
 $(TEST_BIN):
 	$(CC) $(CFLAGS) -o $(TEST_BIN) $(TEST_SRC)
 
+# Build without error checking
+fast:
+	$(MAKE) FAST=1 all -s
 
 clean:
 	rm -f $(LIB) *.o
@@ -32,4 +39,4 @@ tests: $(TEST_BIN)
 	./$(TEST_BIN)
 	rm -f $(TEST_BIN)
 
-.PHONY: all clean tests
+.PHONY: all clean tests fast

@@ -503,7 +503,7 @@ char* BitArray_to_hex_str(const BitArray* bit_array, char* dst)
     BITARRAY_ASSERT_TRUE(dst != NULL);
     if (bit_array->num_bits == 0) {
         *dst = '\0';
-        return;
+        return dst;
     }
 
     char* tmp = dst;

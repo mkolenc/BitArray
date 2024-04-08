@@ -90,9 +90,9 @@ int _TEST_PASS_COUNT = 0;
 
 void display_results(bool _passed, const char* test_name, int line_num)
 {
-    const int right_align_width = 50;
+    const size_t right_align_width = 50;
     printf("%s: ", test_name);
-    for (int i = 0; i < (right_align_width - strlen(test_name)); ++i)
+    for (size_t i = 0; i < (right_align_width - strlen(test_name)); ++i)
         putchar('-');
 
     _TEST_COUNT++;

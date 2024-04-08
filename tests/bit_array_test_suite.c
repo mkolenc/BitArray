@@ -543,8 +543,6 @@ void test_BitArray_first_and_last_set(void)
     ASSERT_NOT_NULL(b);
 
     index_t result = 0;
-    index_t pos_1 = 69;
-    index_t pos_2 = 420;
 
     ASSERT_FALSE(BitArray_first_set_bit(b, &result));
     ASSERT_FALSE(BitArray_last_set_bit(b, &result));
@@ -672,8 +670,6 @@ void test_BitArray_first_and_last_clear(void)
     ASSERT_NOT_NULL(b);
 
     index_t result = 0;
-    index_t pos_1 = 69;
-    index_t pos_2 = 420;
 
     BitArray_set(b);
 
@@ -741,6 +737,7 @@ void test_BitArray_count_bits(void)
 #include <assert.h>
 #endif
 
+#include <stdio.h>
 #include <unistd.h>  // for dup2
 
 typedef void (*TestFunction)(void);

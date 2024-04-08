@@ -11,9 +11,6 @@
 #include <stddef.h>
 #include <stdio.h>
 
-// Uncomment the following line to disable bounds checking for bit operations
-// #define BIT_ARRAY_FAST
-
 // typedefs
 typedef struct BitArray BitArray;
 typedef size_t index_t;
@@ -103,10 +100,6 @@ BitArray* BitArray_copy(const BitArray* bit_array);
 
 // Bit Operations
 // ----------------------------------------------------------------------------------------------------------
-//  - By default, these functions check whether the index passed is valid (In the range [0 to size - 1] inclusive).
-//    An out-of-bounds check is considered critical enough to crash the program if violated.
-//  - However, if you are confident in your code and wish to optimize for speed, you may uncomment the BIT_ARRAY_FAST
-//    definition at the top of this header. This disables the error handling for bit operations.
 
 /*
  * BitArray_check_bit: Checks whether a specific bit in a BitArray is set.
@@ -164,7 +157,7 @@ void BitArray_clear_region(BitArray* bit_array, index_t start_bit_index, index_t
 void BitArray_toggle_region(BitArray* bit_array, index_t start_bit_index, index_t end_bit_index);
 
 /*
- * Sets, clears or toggles the entier BitArray.
+ * Sets, clears or toggles the entire BitArray.
  *
  * Parameters:
  *  - bit_array: Pointer to the BitArray.
