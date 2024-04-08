@@ -1,7 +1,6 @@
 #define TESTING_ENV
 #include "test_utils.h"
-#define BIT_ARRAY_IMPLEMENTATION
-#include "../bit_array.h"
+#include "../bit_array.c"
 
 void test_BitArray_init(void)
 {
@@ -222,6 +221,7 @@ void test_BitArray_init_from_hex(void)
     BitArray* bit_array = BitArray_init_from_hex("");
     ASSERT_NOT_NULL(bit_array);
     ASSERT_TRUE(bit_array->num_bits == 0);
+
     ASSERT_STR_EQUAL(BitArray_to_hex_str(bit_array, BUFFER), "");
 
     bit_array = BitArray_init_from_hex("0123456789aBcDeF");
@@ -389,6 +389,17 @@ void test_BitArray_print_hex(void)
     );
     ASSERT_STR_EQUAL(BUFFER, "0, 1, 2\n3, 4, 5\n6, 7, 8\n9, A, B\nC, D, E\nF\n");
 
+    BitArray_free(b);
+
+    // Check the case where last nibble is forward-padded with zeros
+    b = BitArray_init_from_bin("1010111"); // [1010, 111]
+    ASSERT_NOT_NULL(b);
+
+    CAPTURE_ERRORS(BUFFER,
+        BitArray_print_hex(b, stderr, 3);
+    );
+    ASSERT_STR_EQUAL(BUFFER, "A, 7\n");
+  
     BitArray_free(b);
 }
 
@@ -625,6 +636,13 @@ void test_BitArray_to_strings(void)
     ASSERT_STR_EQUAL(BUFFER, bin_str);
     ASSERT_NOT_NULL(BitArray_to_hex_str(b, BUFFER));
     ASSERT_STR_EQUAL(BUFFER, hex_str);
+
+    BitArray_free(b);
+
+    // Check the case where last nibble is forward-padded with zeros
+    b = BitArray_init_from_bin("1010111"); // [1010, 111]
+    ASSERT_NOT_NULL(b);
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, BUFFER), "A7");
 
     BitArray_free(b);
 }

@@ -81,7 +81,7 @@ bool _MALLOC_FAIL = false;
 bool _CALLOC_FAIL = false;
 bool _REALLOC_FAIL = false;
 
-// Consitent error messages across systems
+// Consistent error messages across systems
 #define strerror(errno) "ERROR"
 
 // Update and display test status
