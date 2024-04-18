@@ -6,7 +6,7 @@ CC = gcc
 CFLAGS = -std=c11 -w -O3
 
 ifdef FAST
-	CFLAGS += -DBIT_ARRAY_FAST
+	CFLAGS += -DNDEBUG
 endif
 
 LIB_SRC = bit_array.c

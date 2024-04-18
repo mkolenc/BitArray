@@ -43,15 +43,6 @@
 #include <assert.h>
 #endif
 
-// Optionally remove error checking for a potential speed up
-#ifdef BIT_ARRAY_FAST
-    #define BITARRAY_ASSERT_INDEX_IN_RANGE(bit_array, bit_index) ((void) 0)
-    #define BITARRAY_ASSERT_TRUE(condition) ((void) 0)
-#else
-    #define BITARRAY_ASSERT_INDEX_IN_RANGE(bit_array, bit_index) assert((bit_index) < (bit_array)->num_bits && "Bit index is out of range")
-    #define BITARRAY_ASSERT_TRUE(condition) assert(condition)
-#endif /* BIT_ARRAY_FAST */
-
 // Constants
 #define SET_BYTE ((uint8_t) 0XFF)
 #define CLEAR_BYTE ((uint8_t) 0)
@@ -103,7 +94,7 @@ BitArray* BitArray_init(index_t size)
 
 BitArray* BitArray_init_from_hex(const char* str)
 {
-    BITARRAY_ASSERT_TRUE(str != NULL);
+    assert(str != NULL);
     index_t digits = strlen(str);
 
     BitArray* bit_array = BitArray_init(digits * 4);
@@ -131,7 +122,7 @@ BitArray* BitArray_init_from_hex(const char* str)
 
 BitArray* BitArray_init_from_bin(const char* str)
 {
-    BITARRAY_ASSERT_TRUE(str != NULL);
+    assert(str != NULL);
     index_t digits = strlen(str);
 
     BitArray* bit_array = BitArray_init(digits);
@@ -196,25 +187,25 @@ BitArray* BitArray_copy(const BitArray* bit_array)
 // Return true if set false otherwise.
 extern inline bool BitArray_check_bit(const BitArray* bit_array, index_t bit_index)
 {
-    BITARRAY_ASSERT_INDEX_IN_RANGE(bit_array, bit_index);
+    assert(bit_index < bit_array->num_bits && "Bit index is out of range");
     return (bit_array->data[BYTE_INDEX(bit_index)] & GET_MASK(bit_index));
 }
 
 extern inline void BitArray_set_bit(BitArray* bit_array, index_t bit_index)
 {
-    BITARRAY_ASSERT_INDEX_IN_RANGE(bit_array, bit_index);
+    assert(bit_index < bit_array->num_bits && "Bit index is out of range");
     bit_array->data[BYTE_INDEX(bit_index)] |= GET_MASK(bit_index);
 }
 
 extern inline void BitArray_clear_bit(BitArray* bit_array, index_t bit_index)
 {
-    BITARRAY_ASSERT_INDEX_IN_RANGE(bit_array, bit_index);
+    assert(bit_index < bit_array->num_bits && "Bit index is out of range");
     bit_array->data[BYTE_INDEX(bit_index)] &= ~GET_MASK(bit_index);
 }
 
 extern inline void BitArray_toggle_bit(BitArray* bit_array, index_t bit_index)
 {
-    BITARRAY_ASSERT_INDEX_IN_RANGE(bit_array, bit_index);
+    assert(bit_index < bit_array->num_bits && "Bit index is out of range");
     bit_array->data[BYTE_INDEX(bit_index)] ^= GET_MASK(bit_index);
 }
 
@@ -260,8 +251,8 @@ static void internal_BitArray_operate_region(BitArray* bit_array,
                                              index_t end_bit_index,
                                              void (*bit_operation)(BitArray*, index_t))
 {
-    BITARRAY_ASSERT_INDEX_IN_RANGE(bit_array, start_bit_index);
-    BITARRAY_ASSERT_INDEX_IN_RANGE(bit_array, end_bit_index);
+    assert(start_bit_index < bit_array->num_bits && "Bit index is out of range");
+    assert(end_bit_index < bit_array->num_bits && "Bit index is out of range");
 
     start_bit_index = MIN(start_bit_index, end_bit_index);
     end_bit_index = MAX(start_bit_index, end_bit_index);
@@ -390,7 +381,7 @@ extern inline index_t BitArray_num_clear_bits(const BitArray* bit_array)
 // Index is inclusive
 static bool internal_BitArray_find_next(const BitArray* bit_array, index_t initial_index, index_t* result, BitState bit_state)
 {
-    BITARRAY_ASSERT_INDEX_IN_RANGE(bit_array, initial_index);
+    assert(initial_index < bit_array->num_bits && "Bit index is out of range");
 
     for (index_t byte = BYTE_INDEX(initial_index); byte < BYTES_FROM_BITS(bit_array->num_bits); ++byte) {
         // Find the first byte containing a bit_state bit
@@ -426,7 +417,7 @@ extern inline bool BitArray_next_clear_bit(const BitArray* bit_array, index_t in
 // Index is inclusive
 static bool internal_BitArray_find_prev(const BitArray* bit_array, index_t initial_index, index_t* result, BitState bit_state)
 {
-    BITARRAY_ASSERT_INDEX_IN_RANGE(bit_array, initial_index);
+    assert(initial_index < bit_array->num_bits && "Bit index is out of range");
     index_t byte = BYTE_INDEX(initial_index);
 
     for (; byte  > 0; --byte) {
@@ -500,7 +491,7 @@ extern inline index_t BitArray_min_bin_str_len(const BitArray* bit_array)
 
 char* BitArray_to_hex_str(const BitArray* bit_array, char* dst)
 {
-    BITARRAY_ASSERT_TRUE(dst != NULL);
+    assert(dst != NULL);
     if (bit_array->num_bits == 0) {
         *dst = '\0';
         return dst;
@@ -530,7 +521,7 @@ char* BitArray_to_hex_str(const BitArray* bit_array, char* dst)
 
 char* BitArray_to_bin_str(const BitArray* bit_array, char* dst)
 {
-    BITARRAY_ASSERT_TRUE(dst != NULL);
+    assert(dst != NULL);
     char* tmp = dst;
 
     for (index_t i = 0; i < BitArray_min_bin_str_len(bit_array) - 1; ++i)
@@ -542,7 +533,7 @@ char* BitArray_to_bin_str(const BitArray* bit_array, char* dst)
 
 void BitArray_print_hex(const BitArray* bit_array, FILE* file_stream, index_t chars_per_line)
 {
-    BITARRAY_ASSERT_TRUE(chars_per_line);
+    assert(chars_per_line);
     if (bit_array->num_bits == 0)
         return;
 
@@ -568,7 +559,7 @@ void BitArray_print_hex(const BitArray* bit_array, FILE* file_stream, index_t ch
 
 void BitArray_print_bin(const BitArray* bit_array, FILE* file_stream, index_t chars_per_line)
 {
-    BITARRAY_ASSERT_TRUE(chars_per_line);
+    assert(chars_per_line);
 
     for (index_t i = 1; i <= bit_array->num_bits; ++i) {
         fprintf(file_stream, "%c", BitArray_check_bit(bit_array, i - 1) + '0');
