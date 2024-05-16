@@ -150,7 +150,7 @@ void BitArray_free(BitArray* bit_array)
     if (bit_array) {
         free(bit_array->data);
         free(bit_array);
-	}
+    }
 }
 
 BitArray* BitArray_resize(BitArray* bit_array, index_t size)
