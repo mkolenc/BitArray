@@ -1,29 +1,31 @@
 #define TESTING_ENV
-#include "test_utils.h"
+#include "test_macros.h"
 #include "../bit_array.c"
+
+/********************************* Start of Tests *********************************/
 
 void test_BitArray_init(void)
 {
     index_t size = 26;
-    _MALLOC_FAIL = true;
-    CAPTURE_ERRORS(BUFFER,
+    test_data.malloc_fail = true;
+    CAPTURE_OUTPUT(
         ASSERT_NULL(BitArray_init(size));
     );
-    ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray struct: ERROR\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "Failed to allocate BitArray struct: ERROR\n");
 
-    _MALLOC_FAIL = false;
-    _CALLOC_FAIL = true;
-    CAPTURE_ERRORS(BUFFER,
+    test_data.malloc_fail = false;
+    test_data.calloc_fail = true;
+    CAPTURE_OUTPUT(
         ASSERT_NULL(BitArray_init(size));
     );
-    ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray data of size 26: ERROR\n");
-    _CALLOC_FAIL = false;
+    ASSERT_STR_EQUAL(test_data.buffer, "Failed to allocate BitArray data of size 26: ERROR\n");
+    test_data.calloc_fail = false;
 
     size = 0;
     BitArray* bit_array = BitArray_init(size);
     ASSERT_NOT_NULL(bit_array);
     ASSERT_EQUALS(bit_array->num_bits, size);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "");
 
     BitArray_free(bit_array);
     size = 10;
@@ -31,7 +33,7 @@ void test_BitArray_init(void)
 
     ASSERT_NOT_NULL(bit_array);
     ASSERT_EQUALS(bit_array->num_bits, size);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "0000000000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "0000000000");
 
     BitArray_free(bit_array);
 }
@@ -45,15 +47,15 @@ void test_BitArray_set(void)
     // BVA for index bounds
     ASSERT_CRASH(BitArray_set_bit(bit_array, 24));
     BitArray_set_bit(bit_array, 23);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "000000000000000000000001");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "000000000000000000000001");
 
     // Setting an already set bit shouldn't modify it
     BitArray_set_bit(bit_array, 23);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "000000000000000000000001");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "000000000000000000000001");
 
     // Correctly indexes into first and last bye
     BitArray_set_bit(bit_array, 0);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "100000000000000000000001");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "100000000000000000000001");
 
     // Check all bit offsets in a byte
     char str[25] = {0};
@@ -63,7 +65,7 @@ void test_BitArray_set(void)
         memset(str, '0', size);
         str[i] = '1';
 
-        ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), str);
+        ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), str);
     }
 
     BitArray_free(bit_array);
@@ -84,27 +86,27 @@ void test_BitArray_region_operations(void)
 
     // Index's are in the same byte
     BitArray_set_region(b, 9, 11);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "000000000111000000000000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "000000000111000000000000");
     BitArray_toggle_region(b, 8, 13);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "000000001000110000000000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "000000001000110000000000");
     BitArray_clear_region(b, 9, 15);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "000000001000000000000000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "000000001000000000000000");
 
     // Startin index is a MSB, ending index is LSB
     BitArray_set_region(b, 8, 23);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "000000001111111111111111");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "000000001111111111111111");
     BitArray_toggle_region(b, 0, 15);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "111111110000000011111111");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "111111110000000011111111");
     BitArray_clear_region(b, 15, 23);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "111111110000000000000000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "111111110000000000000000");
 
     // Starting / ending index are in middle of byte
     BitArray_toggle_region(b, 4, 12);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "111100001111100000000000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "111100001111100000000000");
     BitArray_set_region(b, 6, 16);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "111100111111111110000000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "111100111111111110000000");
     BitArray_clear_region(b, 2, 9);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "110000000011111110000000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "110000000011111110000000");
 
     BitArray_free(b);
 }
@@ -118,15 +120,15 @@ void test_BitArray_clear_bit(void)
     // BVA for index bounds
     ASSERT_CRASH(BitArray_clear_bit(bit_array, 24));
     BitArray_clear_bit(bit_array, 23);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "111111111111111111111110");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "111111111111111111111110");
 
     // Clearing an already cleared bit shouldn't modify it
     BitArray_clear_bit(bit_array, 23);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "111111111111111111111110");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "111111111111111111111110");
 
     // Correctly indexes into first and last bye
     BitArray_clear_bit(bit_array, 0);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "011111111111111111111110");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "011111111111111111111110");
 
     // Check all bit offsets in a byte
     char str[25] = {0};
@@ -136,7 +138,7 @@ void test_BitArray_clear_bit(void)
         memset(str, '1', size);
         str[i] = '0';
 
-        ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), str);
+        ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), str);
     }
 
     BitArray_free(bit_array);
@@ -150,11 +152,11 @@ void test_BitArray_toggle_bit(void)
     // BVA for index bounds
     ASSERT_CRASH(BitArray_toggle_bit(bit_array, 24));
     BitArray_toggle_bit(bit_array, 23);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "000000000000000000000001");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "000000000000000000000001");
 
     // Correctly indexes into first and last bye
     BitArray_toggle_bit(bit_array, 0);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "100000000000000000000001");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "100000000000000000000001");
 
     // Toggle every bit offset on and off
     char str[25] = {0};
@@ -164,11 +166,11 @@ void test_BitArray_toggle_bit(void)
         BitArray_toggle_bit(bit_array, i);
         memset(str, '0', size);
         str[i] = '1';
-        ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), str);
+        ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), str);
 
         BitArray_toggle_bit(bit_array, i);
         memset(str, '0', size);
-        ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), str);
+        ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), str);
     }
 
     BitArray_free(bit_array);
@@ -205,29 +207,29 @@ void test_BitArray_init_from_hex(void)
     // Bad wheather tests
     ASSERT_CRASH(BitArray_init_from_hex(NULL));
 
-    _MALLOC_FAIL = true;
-    CAPTURE_ERRORS(BUFFER,
+    test_data.malloc_fail = true;
+    CAPTURE_OUTPUT(
         ASSERT_NULL(BitArray_init_from_hex("abd00xf"))
     );
-    ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray struct: ERROR\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "Failed to allocate BitArray struct: ERROR\n");
 
-    _MALLOC_FAIL = false;
-    CAPTURE_ERRORS(BUFFER,
+    test_data.malloc_fail = false;
+    CAPTURE_OUTPUT(
         ASSERT_CRASH(BitArray_init_from_hex("adm0Xf"));
     );
-    ASSERT_STR_EQUAL(BUFFER, "Invalid hex string\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "Invalid hex string\n");
 
     // good wheather tests
     BitArray* bit_array = BitArray_init_from_hex("");
     ASSERT_NOT_NULL(bit_array);
     ASSERT_TRUE(bit_array->num_bits == 0);
 
-    ASSERT_STR_EQUAL(BitArray_to_hex_str(bit_array, BUFFER), "");
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(bit_array, test_data.buffer), "");
 
     bit_array = BitArray_init_from_hex("0123456789aBcDeF");
     ASSERT_NOT_NULL(bit_array);
     ASSERT_TRUE(bit_array->num_bits == 64);
-    ASSERT_STR_EQUAL(BitArray_to_hex_str(bit_array, BUFFER), "0123456789ABCDEF");
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(bit_array, test_data.buffer), "0123456789ABCDEF");
 
     BitArray_free(bit_array);
 }
@@ -237,28 +239,28 @@ void test_BitArray_init_from_bin(void)
     // Bad wheather tests
     ASSERT_CRASH(BitArray_init_from_bin(NULL));
 
-    _MALLOC_FAIL = true;
-    CAPTURE_ERRORS(BUFFER,
+    test_data.malloc_fail = true;
+    CAPTURE_OUTPUT(
         ASSERT_NULL(BitArray_init_from_bin("010101"))
     );
-    ASSERT_STR_EQUAL(BUFFER, "Failed to allocate BitArray struct: ERROR\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "Failed to allocate BitArray struct: ERROR\n");
 
-    _MALLOC_FAIL = false;
-    CAPTURE_ERRORS(BUFFER,
+    test_data.malloc_fail = false;
+    CAPTURE_OUTPUT(
         ASSERT_CRASH(BitArray_init_from_bin("0101ff"));
     );
-    ASSERT_STR_EQUAL(BUFFER, "Invalid binary string.\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "Invalid binary string.\n");
 
     // good wheather tests
     BitArray* bit_array = BitArray_init_from_bin("");
     ASSERT_NOT_NULL(bit_array);
     ASSERT_TRUE(bit_array->num_bits == 0);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "");
 
     bit_array = BitArray_init_from_bin("00000010101010");
     ASSERT_NOT_NULL(bit_array);
     ASSERT_TRUE(bit_array->num_bits == 14);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, BUFFER), "00000010101010");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(bit_array, test_data.buffer), "00000010101010");
 
     BitArray_free(bit_array);
 }
@@ -271,31 +273,31 @@ void test_BitArray_resize(void)
 
     ASSERT_NULL(BitArray_resize(b, 0));
 
-    _REALLOC_FAIL = true;
-    CAPTURE_ERRORS(BUFFER,
+    test_data.realloc_fail = true;
+    CAPTURE_OUTPUT(
         ASSERT_NULL(BitArray_resize(b, 1902));
     );
-    ASSERT_STR_EQUAL(BUFFER, "Unable to resize BitArray to size 1902 bits: ERROR\n");
-    _REALLOC_FAIL = false;
+    ASSERT_STR_EQUAL(test_data.buffer, "Unable to resize BitArray to size 1902 bits: ERROR\n");
+    test_data.realloc_fail = false;
 
     BitArray_set(b);
 
     // Resize to same size (should do nothing)
     ASSERT_EQUALS(BitArray_resize(b, size), b);
     ASSERT_EQUALS(b->num_bits, size);
-    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, BUFFER), "FFFFFFFFFFFFFFFF");
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, test_data.buffer), "FFFFFFFFFFFFFFFF");
 
     // Decrease size
     size = 24;
     ASSERT_EQUALS(BitArray_resize(b, size), b);
     ASSERT_EQUALS(b->num_bits, size);
-    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, BUFFER), "FFFFFF");
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, test_data.buffer), "FFFFFF");
 
     // Increase size, zeros should be added
     size = 64;
     ASSERT_EQUALS(BitArray_resize(b, size), b);
     ASSERT_EQUALS(b->num_bits, size);
-    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, BUFFER), "FFFFFF0000000000");
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, test_data.buffer), "FFFFFF0000000000");
 
     BitArray_free(b);
 }
@@ -305,14 +307,14 @@ void test_BitArray_copy(void)
     BitArray* b = BitArray_init_from_hex("AB2255657B7B756DAA083");
     ASSERT_NOT_NULL(b);
 
-    _MALLOC_FAIL = true;
-    CAPTURE_ERRORS(BUFFER,
+    test_data.malloc_fail = true;
+    CAPTURE_OUTPUT(
         ASSERT_NULL(BitArray_copy(b));
     );
-    _MALLOC_FAIL = false;
+    test_data.malloc_fail = false;
 
     BitArray* copy = BitArray_copy(b);
-    ASSERT_STR_EQUAL(BitArray_to_hex_str(copy, BUFFER), "AB2255657B7B756DAA083");
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(copy, test_data.buffer), "AB2255657B7B756DAA083");
 
 
     BitArray_free(copy);
@@ -356,13 +358,13 @@ void test_BitArray_modify_multiple_bits(void)
     ASSERT_NOT_NULL(b);
 
     BitArray_set_bits(b, 4, 0, 3, 5, 9);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "1001010001");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "1001010001");
 
     BitArray_clear_bits(b, 2, 0, 9);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "0001010000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "0001010000");
 
     BitArray_toggle_bits(b, 5, 2, 3, 4, 5, 6);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "0010101000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "0010101000");
 
     BitArray_free(b);
 }
@@ -374,20 +376,20 @@ void test_BitArray_print_hex(void)
 
     ASSERT_CRASH(BitArray_print_hex(b, stderr, 0));
 
-    CAPTURE_ERRORS(BUFFER,
+    CAPTURE_OUTPUT(
         BitArray_print_hex(b, stderr, 16);
     );
-    ASSERT_STR_EQUAL(BUFFER, "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F\n");
 
-    CAPTURE_ERRORS(BUFFER,
+    CAPTURE_OUTPUT(
         BitArray_print_hex(b, stderr, 15);
     );
-    ASSERT_STR_EQUAL(BUFFER, "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E\nF\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E\nF\n");
 
-    CAPTURE_ERRORS(BUFFER,
+    CAPTURE_OUTPUT(
         BitArray_print_hex(b, stderr, 3);
     );
-    ASSERT_STR_EQUAL(BUFFER, "0, 1, 2\n3, 4, 5\n6, 7, 8\n9, A, B\nC, D, E\nF\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "0, 1, 2\n3, 4, 5\n6, 7, 8\n9, A, B\nC, D, E\nF\n");
 
     BitArray_free(b);
 
@@ -395,11 +397,11 @@ void test_BitArray_print_hex(void)
     b = BitArray_init_from_bin("1010111"); // [1010, 111]
     ASSERT_NOT_NULL(b);
 
-    CAPTURE_ERRORS(BUFFER,
+    CAPTURE_OUTPUT(
         BitArray_print_hex(b, stderr, 3);
     );
-    ASSERT_STR_EQUAL(BUFFER, "A, 7\n");
-  
+    ASSERT_STR_EQUAL(test_data.buffer, "A, 7\n");
+
     BitArray_free(b);
 }
 
@@ -409,14 +411,14 @@ void test_BitArray_file_save(void)
     const char* tmp = "some_text.txt";
     FILE* fp = fopen(tmp, "w");
     ASSERT_NOT_NULL(fp);
-    fprintf(fp, "Shall I compare thee to a summers day?");
+    fputs("Shall I compare thee to a summers day?\n", fp);
     fclose(fp);
 
     BitArray* b;
-    CAPTURE_ERRORS(BUFFER,
+    CAPTURE_OUTPUT(
         b = BitArray_load(tmp);
     );
-    ASSERT_STR_EQUAL(BUFFER, "some_text.txt does not contain BitArray data.\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "some_text.txt does not contain BitArray data.\n");
 
     const char* hex_str = "ADF3527FA0009382777D7A73625";
     b = BitArray_init_from_hex(hex_str);
@@ -428,7 +430,7 @@ void test_BitArray_file_save(void)
     BitArray* loaded = BitArray_load(tmp);
     ASSERT_NOT_NULL(loaded);
 
-    ASSERT_STR_EQUAL(BitArray_to_hex_str(loaded, BUFFER), hex_str);
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(loaded, test_data.buffer), hex_str);
 
     BitArray_free(loaded);
     remove(tmp);
@@ -441,20 +443,20 @@ void test_BitArray_print_bin(void)
 
     ASSERT_CRASH(BitArray_print_bin(b, stderr, 0));
 
-    CAPTURE_ERRORS(BUFFER,
+    CAPTURE_OUTPUT(
         BitArray_print_bin(b, stderr, 16);
     );
-    ASSERT_STR_EQUAL(BUFFER, "0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1\n");
 
-    CAPTURE_ERRORS(BUFFER,
+    CAPTURE_OUTPUT(
         BitArray_print_bin(b, stderr, 15);
     );
-    ASSERT_STR_EQUAL(BUFFER, "0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1\n1\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1\n1\n");
 
-    CAPTURE_ERRORS(BUFFER,
+    CAPTURE_OUTPUT(
         BitArray_print_bin(b, stderr, 2);
     );
-    ASSERT_STR_EQUAL(BUFFER, "0, 1\n0, 0\n0, 0\n1, 0\n1, 0\n1, 0\n1, 0\n1, 1\n");
+    ASSERT_STR_EQUAL(test_data.buffer, "0, 1\n0, 0\n0, 0\n1, 0\n1, 0\n1, 0\n1, 0\n1, 1\n");
 
     BitArray_free(b);
 }
@@ -466,14 +468,14 @@ void test_BitArray_operations(void)
     ASSERT_NOT_NULL(b);
 
     BitArray_set(b);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "11111111111111111111");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "11111111111111111111");
 
     BitArray_clear(b);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "00000000000000000000");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "00000000000000000000");
 
     BitArray_set_bits(b, 3, 2, 12, 16);
     BitArray_toggle(b);
-    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, BUFFER), "11011111111101110111");
+    ASSERT_STR_EQUAL(BitArray_to_bin_str(b, test_data.buffer), "11011111111101110111");
 
     BitArray_free(b);
 }
@@ -617,10 +619,10 @@ void test_BitArray_to_strings(void)
 
     ASSERT_CRASH(BitArray_to_hex_str(b, NULL));
 
-    ASSERT_NOT_NULL(BitArray_to_bin_str(b, BUFFER));
-    ASSERT_STR_EQUAL(BUFFER, "");
-    ASSERT_NOT_NULL(BitArray_to_hex_str(b, BUFFER));
-    ASSERT_STR_EQUAL(BUFFER, "");
+    ASSERT_NOT_NULL(BitArray_to_bin_str(b, test_data.buffer));
+    ASSERT_STR_EQUAL(test_data.buffer, "");
+    ASSERT_NOT_NULL(BitArray_to_hex_str(b, test_data.buffer));
+    ASSERT_STR_EQUAL(test_data.buffer, "");
 
     BitArray_free(b);
 
@@ -630,17 +632,17 @@ void test_BitArray_to_strings(void)
     b = BitArray_init_from_hex(hex_str);
     ASSERT_NOT_NULL(b);
 
-    ASSERT_NOT_NULL(BitArray_to_bin_str(b, BUFFER));
-    ASSERT_STR_EQUAL(BUFFER, bin_str);
-    ASSERT_NOT_NULL(BitArray_to_hex_str(b, BUFFER));
-    ASSERT_STR_EQUAL(BUFFER, hex_str);
+    ASSERT_NOT_NULL(BitArray_to_bin_str(b, test_data.buffer));
+    ASSERT_STR_EQUAL(test_data.buffer, bin_str);
+    ASSERT_NOT_NULL(BitArray_to_hex_str(b, test_data.buffer));
+    ASSERT_STR_EQUAL(test_data.buffer, hex_str);
 
     BitArray_free(b);
 
     // Check the case where last nibble is forward-padded with zeros
     b = BitArray_init_from_bin("1010111"); // [1010, 111]
     ASSERT_NOT_NULL(b);
-    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, BUFFER), "A7");
+    ASSERT_STR_EQUAL(BitArray_to_hex_str(b, test_data.buffer), "A7");
 
     BitArray_free(b);
 }
@@ -704,7 +706,7 @@ void test_BitArray_count_bits(void)
     for (int i = 0; i <= 0xFF; ++i) {
         int set_count = 0;
         for (int j = 0; j < 8; ++j) {
-            if ((0b10000000 >> j) & i) {
+            if ((0x80 >> j) & i) {
                 BitArray_set_bit(b, j);
                 ++set_count;
             } else
@@ -730,58 +732,64 @@ void test_BitArray_count_bits(void)
     BitArray_free(b);
 }
 
-/////////////////// end of tests ///////////////////
-
-#ifdef TESTING_ENV
-#undef assert
-#include <assert.h>
-#endif
-
-#include <stdio.h>
-#include <unistd.h>  // for dup2
-
-typedef void (*TestFunction)(void);
+/********************************* End of Tests *********************************/
+#include "test_utils.h"
 
 typedef struct {
-    TestFunction function;
+    void (*function)(void);
     const char* name;
 } TestFunctionInfo;
 
+typedef struct {
+    TestFunctionInfo* tests;
+    size_t num_tests;
+    size_t num_passed;
+    clock_t start_time;
+    clock_t end_time;
+} TestSuite;
 
-void before_all_tests(void)
+void before_all(TestSuite* suite)
 {
-    // Redirect stderr to ERROR_FILE_NAME
-    _error_log_fp = fopen(ERROR_FILE_NAME, "w+");
-    assert(_error_log_fp != NULL);
-    assert(dup2(fileno(_error_log_fp), STDERR_FILENO) != -1);
+    shuffle_array(suite->tests, sizeof(suite->tests[0]), suite->num_tests);
+    suite->start_time = clock();
 }
 
-void after_all_tests(void)
+void after_all(TestSuite* suite)
 {
-    // Restore stderr and delete error log for tests
-    dup2(STDERR_FILENO, fileno(stderr));
-    fclose(_error_log_fp);
-    remove(ERROR_FILE_NAME);
+    suite->end_time = clock();
+    remove(TESTING_OUTPUT_FILE_NAME);
 
-    printf("Passed %d/%d tests\n", _TEST_PASS_COUNT, _TEST_COUNT);
+    display_test_summary(suite->num_tests, suite->num_passed, suite->start_time, suite->end_time);
 }
 
 void before_each(void)
 {
-    _passed = true;
+    test_data.passed = true;
+    test_data.malloc_fail = false;
+    test_data.calloc_fail = false;
+    test_data.realloc_fail = false;
 }
 
-void after_each(const char* test_name)
+void after_each(TestSuite* suite, size_t i)
 {
-    _MALLOC_FAIL = false;
-    _CALLOC_FAIL = false;
-    _REALLOC_FAIL = false;
-    display_results(_passed, test_name, _test_line);
+    if (test_data.passed)
+        suite->num_passed++;
+
+    display_test_result(suite->tests[i].name, test_data.passed, test_data.line_number);
 }
 
-void run_tests(void)
+void run_tests(TestSuite* suite)
 {
-    TestFunctionInfo test_funcs[] = {
+    for (size_t i = 0; i < suite->num_tests; ++i) {
+        before_each();
+        suite->tests[i].function();
+        after_each(suite, i);
+    }
+}
+
+int main(void)
+{
+    TestFunctionInfo tests[] = {
         {test_BitArray_init, "test_BitArray_init"},
         {test_BitArray_set, "test_BitArray_set"},
         {test_BitArray_clear_bit, "test_BitArray_clear_bit"},
@@ -808,24 +816,12 @@ void run_tests(void)
         {test_BitArray_print_bin, "test_BitArray_print_bin"},
         {test_BitArray_file_save, "test_BitArray_file_save"}
     };
-    const int NUM_TESTS = sizeof(test_funcs) / sizeof(test_funcs[0]);
 
-    // Run the test in a random order
-    shuffle_array(test_funcs, sizeof(test_funcs[0]), NUM_TESTS);
+    TestSuite suite = {tests, sizeof(tests) / sizeof(tests[0]), 0, 0, 0};
 
-    for (int i = 0; i < NUM_TESTS; ++i) {
-        before_each();
-        test_funcs[i].function();
-        after_each(test_funcs[i].name);
-    }
-}
-
-// Driving test code
-int main(void)
-{
-    before_all_tests();
-    run_tests();
-    after_all_tests();
+    before_all(&suite);
+    run_tests(&suite);
+    after_all(&suite);
 
     return 0;
 }

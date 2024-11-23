@@ -40,11 +40,11 @@
 #include "bit_array.h"
 
 #ifndef TESTING_ENV
-#include <assert.h>
+    #include <assert.h>
 #endif
 
 // Constants
-#define SET_BYTE ((uint8_t) 0XFF)
+#define SET_BYTE ((uint8_t) 0xFF)
 #define CLEAR_BYTE ((uint8_t) 0)
 #define FILE_HEADER ("BitArray_Data_File")
 #define HEADER_LEN (18)
@@ -53,10 +53,10 @@
 #define UINT8_WIDTH (8)
 #endif
 
-typedef enum BitState {
+enum BitState {
     BIT_CLEAR = 0,
     BIT_SET = 1
-} BitState;
+};
 
 // Macro functions
 #define BYTES_FROM_BITS(bits) POS_CEIL(((long double) bits) / UINT8_WIDTH)
@@ -187,25 +187,25 @@ BitArray* BitArray_copy(const BitArray* bit_array)
 }
 
 // Return true if set false otherwise.
-extern inline bool BitArray_check_bit(const BitArray* bit_array, index_t bit_index)
+bool BitArray_check_bit(const BitArray* bit_array, index_t bit_index)
 {
     assert(bit_index < bit_array->num_bits && "Bit index is out of range");
     return (bit_array->data[BYTE_INDEX(bit_index)] & GET_MASK(bit_index));
 }
 
-extern inline void BitArray_set_bit(BitArray* bit_array, index_t bit_index)
+void BitArray_set_bit(BitArray* bit_array, index_t bit_index)
 {
     assert(bit_index < bit_array->num_bits && "Bit index is out of range");
     bit_array->data[BYTE_INDEX(bit_index)] |= GET_MASK(bit_index);
 }
 
-extern inline void BitArray_clear_bit(BitArray* bit_array, index_t bit_index)
+void BitArray_clear_bit(BitArray* bit_array, index_t bit_index)
 {
     assert(bit_index < bit_array->num_bits && "Bit index is out of range");
     bit_array->data[BYTE_INDEX(bit_index)] &= ~GET_MASK(bit_index);
 }
 
-extern inline void BitArray_toggle_bit(BitArray* bit_array, index_t bit_index)
+void BitArray_toggle_bit(BitArray* bit_array, index_t bit_index)
 {
     assert(bit_index < bit_array->num_bits && "Bit index is out of range");
     bit_array->data[BYTE_INDEX(bit_index)] ^= GET_MASK(bit_index);
@@ -329,7 +329,8 @@ extern inline void BitArray_toggle(BitArray* bit_array)
     internal_BitArray_operate_region(bit_array, 0, bit_array->num_bits - 1, BitArray_toggle_bit);
 }
 
-extern inline index_t BitArray_size(const BitArray* bit_array) {
+index_t BitArray_size(const BitArray* bit_array)
+{
     return bit_array->num_bits;
 }
 
@@ -374,21 +375,21 @@ index_t BitArray_num_set_bits(const BitArray* bit_array)
     return BitArray_num_set_bits;
 }
 
-extern inline index_t BitArray_num_clear_bits(const BitArray* bit_array)
+index_t BitArray_num_clear_bits(const BitArray* bit_array)
 {
     return bit_array->num_bits - BitArray_num_set_bits(bit_array);
 }
 
 // If found, return true and save result in *result, else return false and dont change *result
 // Index is inclusive
-static bool internal_BitArray_find_next(const BitArray* bit_array, index_t initial_index, index_t* result, BitState bit_state)
+static bool internal_BitArray_find_next(const BitArray* bit_array, index_t initial_index, index_t* result, enum BitState bit_state)
 {
     assert(initial_index < bit_array->num_bits && "Bit index is out of range");
 
     for (index_t byte = BYTE_INDEX(initial_index); byte < BYTES_FROM_BITS(bit_array->num_bits); ++byte) {
         // Find the first byte containing a bit_state bit
         if ((bit_array->data[byte] > 0 && bit_state) ||
-            (bit_array->data[byte] < 0XFF && !bit_state)) {
+            (bit_array->data[byte] < 0xFF && !bit_state)) {
             index_t bit_index = byte * UINT8_WIDTH;
             uint8_t i = (byte == BYTE_INDEX(initial_index)) ? BIT_OFFSET(initial_index) : 0;
 
@@ -417,7 +418,7 @@ extern inline bool BitArray_next_clear_bit(const BitArray* bit_array, index_t in
 
 // If found, return true and save result in *result, else return false and dont change *result
 // Index is inclusive
-static bool internal_BitArray_find_prev(const BitArray* bit_array, index_t initial_index, index_t* result, BitState bit_state)
+static bool internal_BitArray_find_prev(const BitArray* bit_array, index_t initial_index, index_t* result, enum BitState bit_state)
 {
     assert(initial_index < bit_array->num_bits && "Bit index is out of range");
     index_t byte = BYTE_INDEX(initial_index);
@@ -425,7 +426,7 @@ static bool internal_BitArray_find_prev(const BitArray* bit_array, index_t initi
     for (; byte  > 0; --byte) {
         // Find the first byte containing a bit_state bit
         if ((bit_array->data[byte] > 0 && bit_state) ||
-            (bit_array->data[byte] < 0XFF && !bit_state)) {
+            (bit_array->data[byte] < 0xFF && !bit_state)) {
             index_t bit_index = byte * UINT8_WIDTH;
             char i = (byte == BYTE_INDEX(initial_index)) ? BIT_OFFSET(initial_index) : UINT8_WIDTH - 1;
 
@@ -481,12 +482,12 @@ extern inline bool BitArray_last_set_bit(const BitArray* bit_array, index_t* res
     return BitArray_prev_set_bit(bit_array, bit_array->num_bits - 1, result);
 }
 
-extern inline index_t BitArray_min_hex_str_len(const BitArray* bit_array)
+index_t BitArray_min_hex_str_len(const BitArray* bit_array)
 {
     return POS_CEIL(bit_array->num_bits / 4.0) + 1;
 }
 
-extern inline index_t BitArray_min_bin_str_len(const BitArray* bit_array)
+index_t BitArray_min_bin_str_len(const BitArray* bit_array)
 {
     return bit_array->num_bits + 1;
 }
@@ -504,13 +505,13 @@ char* BitArray_to_hex_str(const BitArray* bit_array, char* dst)
     index_t num_nibbles = BitArray_min_hex_str_len(bit_array) - 1;
     index_t i = 1;
     for (; i < num_nibbles; ++i) {
-        uint8_t nibble = bit_array->data[(i - 1) / 2] & (0X0F << ((i & 1) * 4));
+        uint8_t nibble = bit_array->data[(i - 1) / 2] & (0x0F << ((i & 1) * 4));
         sprintf(dst++, "%X", nibble);
     }
 
     // In the case the BitArray is not a multiple of 4, need to left-pad zeros
     // [111] should be interpreded as [0111] not [1110].
-    uint8_t nibble = bit_array->data[(i - 1) / 2] & (0X0F << ((i & 1) * 4));
+    uint8_t nibble = bit_array->data[(i - 1) / 2] & (0x0F << ((i & 1) * 4));
     uint8_t bits_in_last_nibble = bit_array->num_bits % 4;
     if (bits_in_last_nibble)
         nibble >>= 4 - bits_in_last_nibble;
@@ -544,14 +545,14 @@ void BitArray_print_hex(const BitArray* bit_array, FILE* file_stream, index_t ch
     index_t i = 1;
     for (; i < num_nibbles; ++i) {
         // Gets the lower / upper nibble of each byte
-        uint8_t nibble = bit_array->data[(i - 1) / 2] & (0X0F << ((i & 1) * 4));
+        uint8_t nibble = bit_array->data[(i - 1) / 2] & (0x0F << ((i & 1) * 4));
         // Prints the nibble in hex, followed by a '\n' or ', '
         fprintf(file_stream, "%X%s", nibble >> (i & 1 ? 4 : 0), (i % chars_per_line == 0) ? "\n" : ", ");
     }
 
     // In the case the BitArray is not a multiple of 4, need to left-pad zeros
     // [111] should be interpreded as [0111] not [1110].
-    uint8_t nibble = bit_array->data[(i - 1) / 2] & (0X0F << ((i & 1) * 4));
+    uint8_t nibble = bit_array->data[(i - 1) / 2] & (0x0F << ((i & 1) * 4));
     uint8_t bits_in_last_nibble = bit_array->num_bits % 4;
     if (bits_in_last_nibble)
         nibble >>= 4 - bits_in_last_nibble;
