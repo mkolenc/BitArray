@@ -4,7 +4,7 @@
 
 **bit_array.c** provides a simple and efficient implementation of a bit array for C/C++. A bit array represents a sequence of bits where each bit can be individually manipulated and queried. This library offers various functions for initializing, managing, and performing operations on a bit array.
 
-**Author:** Max Kolenc  
+**Author:** Max Kolenc
 **Date:** Jan, 2024
 
 ## Table of Contents
@@ -53,7 +53,7 @@ gcc ... -I$(BitArray_path) -L$(BitArray_path) -lbitarr
 
 - **BitArray:**
   - Struct representing the bit array.
-  
+
 - **index_t:**
   - Typedef for the index type used in the bit array.
 
@@ -67,7 +67,7 @@ gcc ... -I$(BitArray_path) -L$(BitArray_path) -lbitarr
     ```c
     BitArray* BitArray_init(index_t size)
     ```
-    
+
 - **Initializes a BitArray from a hexadecimal string.**
 
     Each hexadecimal character represents 4 bits ('0' is 0000, '1' is 0001, ..., 'F' is 1111). Returns a pointer to the newly initialized BitArray on success, otherwise NULL.
@@ -81,9 +81,9 @@ gcc ... -I$(BitArray_path) -L$(BitArray_path) -lbitarr
     ```c
     BitArray* BitArray_init_from_bin(const char* str)
     ```
-    
+
 ### Memory Management
-    
+
 - **Deallocates memory used for a previously initialized BitArray.**
     ```c
     void BitArray_free(BitArray* bit_array)
@@ -119,7 +119,7 @@ gcc ... -I$(BitArray_path) -L$(BitArray_path) -lbitarr
     ```c
     void BitArray_clear_bit(BitArray* bit_array, index_t bit_index)
     ```
-    
+
 - **Toggle a specific bit in the BitArray.**
     ```c
     void BitArray_toggle_bit(BitArray* bit_array, index_t bit_index)
@@ -128,7 +128,7 @@ gcc ... -I$(BitArray_path) -L$(BitArray_path) -lbitarr
 - **Set one or more bits in the bit_array.**
     ```c
     void BitArray_set_bits(BitArray* bit_array, index_t num_bits_to_set, ...)
-    
+
     // e.g. set bits 2, 8, 13, 46:
     BitArray_set_bits(bit_array, 4, 2, 8, 13, 46);
     ```
@@ -136,7 +136,7 @@ gcc ... -I$(BitArray_path) -L$(BitArray_path) -lbitarr
 - **Clear one or more bits in the bit_array.**
     ```c
     void BitArray_clear_bits(BitArray* bit_array, index_t num_bits_to_clear, ...)
-    
+
     // e.g. clears bits 1, 200, 9:
     BitArray_clear_bits(bit_array, 3, 1, 200, 9);
     ```
@@ -144,7 +144,7 @@ gcc ... -I$(BitArray_path) -L$(BitArray_path) -lbitarr
 - **Toggle one or more bits in the bit_array.**
     ```c
     void BitArray_toggle_bits(BitArray* bit_array, index_t num_bits_to_toggle, ...)
-    
+
     // e.g. toggle bits 15, 23, 99, 57, 30:
     BitArray_toggle_bits(bit_array, 5, 15, 23, 99, 57, 30);
     ```
@@ -200,8 +200,8 @@ gcc ... -I$(BitArray_path) -L$(BitArray_path) -lbitarr
 
 ### Searching
 
-   If the specified bit is found, returns true and saves the index of the bit in the 'result' variable. Otherwise, returns NULL and leaves 'result' unchanged. Note, the 'initial_index' is included in the search.
-    
+   If the specified bit is found, returns true and saves the index of the bit in the 'result' variable. Otherwise, returns false and leaves 'result' unchanged. Note, the 'initial_index' is included in the search.
+
 - **Get the index of the next set bit in the BitArray.**
     ```c
     bool BitArray_next_set_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
@@ -223,7 +223,7 @@ gcc ... -I$(BitArray_path) -L$(BitArray_path) -lbitarr
     ```
 
     If searching for the 'first' specified bit, start searching forward from index 0. Otherwise, search backwards from index BitArray_size() - 1.
-    
+
 - **Get the index of the first clear bit.**
     ```c
     bool BitArray_first_clear_bit(const BitArray* bit_array, index_t* result)

@@ -50,7 +50,7 @@
 #define HEADER_LEN (18)
 
 #ifndef UINT8_WIDTH // For compatibility with versions preceding -std=c23
-#define UINT8_WIDTH (8)
+    #define UINT8_WIDTH (8)
 #endif
 
 enum BitState {
@@ -62,7 +62,7 @@ enum BitState {
 #define BYTES_FROM_BITS(bits) POS_CEIL(((long double) bits) / UINT8_WIDTH)
 #define BYTE_INDEX(index) ((index) / UINT8_WIDTH)
 #define BIT_OFFSET(index) ((index) % UINT8_WIDTH)
-#define GET_MASK(index) (1 << (UINT8_WIDTH - BIT_OFFSET(index) - 1))
+#define GET_MASK(index) (((uint8_t) 0x80) >> BIT_OFFSET(index))
 
 #define POS_CEIL(x) (((x) > (index_t)(x)) ? ((index_t)(x) + 1) : ((index_t)(x)))
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
