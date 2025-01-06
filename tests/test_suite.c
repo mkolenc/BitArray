@@ -246,10 +246,18 @@ void test_BitArray_init_from_bin(void)
     ASSERT_STR_EQUAL(test_data.buffer, "Failed to allocate BitArray struct: ERROR\n");
 
     test_data.malloc_fail = false;
+    // Invalid hex chars
     CAPTURE_OUTPUT(
         ASSERT_CRASH(BitArray_init_from_bin("0101ff"));
     );
     ASSERT_STR_EQUAL(test_data.buffer, "Invalid binary string.\n");
+
+    // Invalid digits
+    CAPTURE_OUTPUT(
+        ASSERT_CRASH(BitArray_init_from_bin("01012005"));
+    );
+    ASSERT_STR_EQUAL(test_data.buffer, "Invalid binary string.\n");
+
 
     // good wheather tests
     BitArray* bit_array = BitArray_init_from_bin("");

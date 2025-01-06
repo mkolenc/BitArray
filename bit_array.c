@@ -132,14 +132,14 @@ BitArray* BitArray_init_from_bin(const char* str)
     for (index_t i = 0; i < digits; ++i, ++str) {
         uint8_t val = *str;
 
-        if (!isdigit(val)) {
+        if (val == '0')
+            BitArray_clear_bit(bit_array, i);
+        else if (val == '1')
+            BitArray_set_bit(bit_array, i);
+        else {
             fprintf(stderr, "Invalid binary string.\n");
             exit(EXIT_FAILURE);
         }
-        if (val == '0')
-            BitArray_clear_bit(bit_array, i);
-        else
-            BitArray_set_bit(bit_array, i);
     }
 
     return bit_array;
