@@ -299,32 +299,32 @@ static void internal_BitArray_operate_region(BitArray* bit_array,
             ptr[i] ^= SET_BYTE;
 }
 
-extern inline void BitArray_set_region(BitArray* bit_array, index_t start_bit_index, index_t end_bit_index)
+void BitArray_set_region(BitArray* bit_array, index_t start_bit_index, index_t end_bit_index)
 {
     internal_BitArray_operate_region(bit_array, start_bit_index, end_bit_index, BitArray_set_bit);
 }
 
-extern inline void BitArray_clear_region(BitArray* bit_array, index_t start_bit_index, index_t end_bit_index)
+void BitArray_clear_region(BitArray* bit_array, index_t start_bit_index, index_t end_bit_index)
 {
     internal_BitArray_operate_region(bit_array, start_bit_index, end_bit_index, BitArray_clear_bit);
 }
 
-extern inline void BitArray_toggle_region(BitArray* bit_array, index_t start_bit_index, index_t end_bit_index)
+void BitArray_toggle_region(BitArray* bit_array, index_t start_bit_index, index_t end_bit_index)
 {
     internal_BitArray_operate_region(bit_array, start_bit_index, end_bit_index, BitArray_toggle_bit);
 }
 
-extern inline void BitArray_set(BitArray* bit_array)
+void BitArray_set(BitArray* bit_array)
 {
     internal_BitArray_operate_region(bit_array, 0, bit_array->num_bits - 1, BitArray_set_bit);
 }
 
-extern inline void BitArray_clear(BitArray* bit_array)
+void BitArray_clear(BitArray* bit_array)
 {
     internal_BitArray_operate_region(bit_array, 0, bit_array->num_bits - 1, BitArray_clear_bit);
 }
 
-extern inline void BitArray_toggle(BitArray* bit_array)
+void BitArray_toggle(BitArray* bit_array)
 {
     internal_BitArray_operate_region(bit_array, 0, bit_array->num_bits - 1, BitArray_toggle_bit);
 }
@@ -406,12 +406,12 @@ static bool internal_BitArray_find_next(const BitArray* bit_array, index_t initi
     return false;
 }
 
-extern inline bool BitArray_next_set_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
+bool BitArray_next_set_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
 {
     return internal_BitArray_find_next(bit_array, initial_index, result, BIT_SET);
 }
 
-extern inline bool BitArray_next_clear_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
+bool BitArray_next_clear_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
 {
     return internal_BitArray_find_next(bit_array, initial_index, result, BIT_CLEAR);
 }
@@ -452,32 +452,32 @@ static bool internal_BitArray_find_prev(const BitArray* bit_array, index_t initi
     return false;
 }
 
-extern inline bool BitArray_prev_set_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
+bool BitArray_prev_set_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
 {
     return internal_BitArray_find_prev(bit_array, initial_index, result, BIT_SET);
 }
 
-extern inline bool BitArray_prev_clear_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
+bool BitArray_prev_clear_bit(const BitArray* bit_array, index_t initial_index, index_t* result)
 {
     return internal_BitArray_find_prev(bit_array, initial_index, result, BIT_CLEAR);
 }
 
-extern inline bool BitArray_first_clear_bit(const BitArray* bit_array, index_t* result)
+bool BitArray_first_clear_bit(const BitArray* bit_array, index_t* result)
 {
     return BitArray_next_clear_bit(bit_array, 0, result);
 }
 
-extern inline bool BitArray_first_set_bit(const BitArray* bit_array, index_t* result)
+bool BitArray_first_set_bit(const BitArray* bit_array, index_t* result)
 {
     return BitArray_next_set_bit(bit_array, 0, result);
 }
 
-extern inline bool BitArray_last_clear_bit(const BitArray* bit_array, index_t* result)
+bool BitArray_last_clear_bit(const BitArray* bit_array, index_t* result)
 {
     return BitArray_prev_clear_bit(bit_array, bit_array->num_bits - 1, result);
 }
 
-extern inline bool BitArray_last_set_bit(const BitArray* bit_array, index_t* result)
+bool BitArray_last_set_bit(const BitArray* bit_array, index_t* result)
 {
     return BitArray_prev_set_bit(bit_array, bit_array->num_bits - 1, result);
 }
